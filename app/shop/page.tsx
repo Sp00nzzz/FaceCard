@@ -14,26 +14,26 @@ interface ShopItem {
 }
 
 const SHOP_ITEMS: ShopItem[] = [
-  { id: '6', name: 'Pizza Slice', price: 3.99, image: '/Items/PizzaSlice.png' },
+  { id: '6', name: 'Pizza Slice', price: 3.99, image: '/Items/pizzaslice.png' },
   { id: '1', name: 'Sonny Angel', price: 12.99, image: '/Items/sonny.png' },
   { id: '3', name: '1 Year of 𝕏 Premium ', price: 96.99, image: '/Items/Xpremium.png' },
   { id: '2', name: 'Aritzia Hoodie', price: 120.99, image: '/Items/AritziaHoodie.png'},
-  { id: '8', name: 'Airpods', price: 249.99, image: '/Items/Airpods.png' },
+  { id: '8', name: 'Airpods', price: 249.99, image: '/Items/airpods.png' },
   { id: '5', name: 'Steam Deck', price: 549.99, image: '/Items/SteamDeck.png' },
-  { id: '17', name: 'Chanel Glasses', price: 850.99, image: '/Items/ChanelGlasses.png' },
-  { id: '9', name: 'iPhone 16', price: 999.99, image: '/Items/iPhone.png' },
-  { id: '10', name: 'Gorilla', price: 2500.99, image: '/Items/Gorilla.png' },
+  { id: '17', name: 'Chanel Glasses', price: 850.99, image: '/Items/chanelglasses.png' },
+  { id: '9', name: 'iPhone 16', price: 999.99, image: '/Items/iphone.png' },
+  { id: '10', name: 'Gorilla', price: 2500.99, image: '/Items/gorilla.png' },
   { id: '14', name: 'Trip to Japan', price: 3500.99, image: '/Items/Japan.png' },
-  { id: '18', name: 'Tiffany & Co. Ring', price: 15000.99, image: '/Items/TiffanyRing.png' },
+  { id: '18', name: 'Tiffany & Co. Ring', price: 15000.99, image: '/Items/tiffanyRing.png' },
   { id: '15', name: 'Ford F1-50', price: 45000.99, image: '/Items/Ford F150.png' },
   { id: '4', name: 'Hermès Birkin Bag', price: 45000.99, image: '/Items/BirkinBag.png' },
   { id: '19', name: 'Unlimited Nobu', price: 50000.99, image: '/Items/Nobu.png' },
   { id: '7', name: 'Spot®', price: 74900.99, image: '/Items/robotDog.png' },
-  { id: '12', name: 'Porsche', price: 95000.99, image: '/Items/Porsche.png' },
-  { id: '11', name: 'Goose Farm', price: 125000.99, image: '/Items/GooseFarm.png' },
+  { id: '12', name: 'Porsche', price: 95000.99, image: '/Items/porsche.png' },
+  { id: '11', name: 'Goose Farm', price: 125000.99, image: '/Items/goosefarm.png' },
   { id: '20', name: 'Drake Feature', price: 250000.99, image: '/Items/Drake.png' },
   { id: '13', name: 'Single Family Home', price: 450000.99, image: '/Items/house.png' },
-  { id: '16', name: 'Sign Lebron James', price: 2500000.99, image: '/Items/LebronJames.png' },
+  { id: '16', name: 'Sign Lebron James', price: 2500000.99, image: '/Items/lebronjames.png' },
 ]
 
 interface FaceAttribute {
