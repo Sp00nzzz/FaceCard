@@ -26,9 +26,11 @@ export default function Home() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [currentDate, setCurrentDate] = useState<string>('')
   const [currentTime, setCurrentTime] = useState<string>('')
+  const [mounted, setMounted] = useState(false)
 
-  // Set date/time on client side only to avoid hydration mismatch
+  // Set mounted state and date/time on client side only to avoid hydration mismatch
   useEffect(() => {
+    setMounted(true)
     const now = new Date()
     setCurrentDate(now.toLocaleDateString())
     setCurrentTime(now.toLocaleTimeString())
@@ -336,10 +338,28 @@ Example:
     return { subtotal, tax, total }
   }
 
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <main style={{
+        width: '100%',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#fbfbfd',
+        padding: '40px',
+      }}>
+        <div style={{ fontSize: '17px', color: '#666' }}>Loading...</div>
+      </main>
+    )
+  }
+
   if (cameraPermissionDenied) {
     return (
       <main style={{
-        width: '100vw',
+        width: '100%',
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
@@ -411,7 +431,7 @@ Example:
 
   return (
     <main style={{
-      width: '100vw',
+      width: '100%',
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -445,25 +465,25 @@ Example:
       {/* Thin horizontal divider above marquee */}
       <div
         style={{
-          width: '100vw',
+          width: 'calc(100% + 40px)',
           height: '1px',
           backgroundColor: '#000000',
           marginTop: '0px',
-          marginBottom: 'clamp(-20px, -5vw, -25px)',
-          marginLeft: 'clamp(-10px, -3vw, -20px)',
-          marginRight: 'clamp(-10px, -3vw, -20px)',
+          marginBottom: '-25px',
+          marginLeft: '-20px',
+          marginRight: '-20px',
         }}
       />
 
       {/* Marquee text */}
       <div
         style={{
-          width: '100vw',
+          width: 'calc(100% + 40px)',
           overflow: 'hidden',
           whiteSpace: 'nowrap',
-          marginBottom: 'clamp(-20px, -5vw, -25px)',
-          marginLeft: 'clamp(-10px, -3vw, -20px)',
-          marginRight: 'clamp(-10px, -3vw, -20px)',
+          marginBottom: '-25px',
+          marginLeft: '-20px',
+          marginRight: '-20px',
         }}
       >
         <div
@@ -486,12 +506,12 @@ Example:
       {/* Thin horizontal divider below marquee */}
       <div
         style={{
-          width: '100vw',
+          width: 'calc(100% + 40px)',
           height: '1px',
           backgroundColor: '#000000',
           marginBottom: 'clamp(45px, 8vw, 40px)',
-          marginLeft: 'clamp(-10px, -3vw, -20px)',
-          marginRight: 'clamp(-10px, -3vw, -20px)',
+          marginLeft: '-20px',
+          marginRight: '-20px',
         }}
       />
 
