@@ -1,9 +1,9 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'FaceCard - Webcam',
-  description: 'Simple webcam viewer',
+  title: 'FaceCard Valuation',
+  description: 'How much is your face card?P Prob alot... Buy something with your face card!',
   icons: {
     icon: '/favicon.png',
   },
@@ -14,6 +14,13 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     images: ['/socialsharing.png'],
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 }
 
 export default function RootLayout({

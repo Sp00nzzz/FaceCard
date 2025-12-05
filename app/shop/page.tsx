@@ -343,7 +343,7 @@ export default function ShopPage() {
         justifyContent: 'flex-start',
         alignItems: 'center',
         backgroundColor: '#ffffff',
-        padding: '40px 20px 60px',
+        padding: 'clamp(20px, 5vw, 40px) clamp(10px, 3vw, 20px) clamp(40px, 8vw, 60px)',
         position: 'relative',
       }}
     >
@@ -352,17 +352,20 @@ export default function ShopPage() {
         onClick={() => router.push('/')}
         style={{
           position: 'absolute',
-          top: 16,
-          left: 16,
+          top: 'clamp(12px, 3vw, 16px)',
+          left: 'clamp(12px, 3vw, 16px)',
           border: 'none',
           background: 'none',
-          padding: 0,
+          padding: '8px',
           margin: 0,
-          fontSize: 14,
+          fontSize: 'clamp(13px, 3.5vw, 14px)',
           color: '#6e6e73',
           cursor: 'pointer',
           textDecoration: 'none',
           zIndex: 100,
+          minHeight: '44px',
+          minWidth: '44px',
+          touchAction: 'manipulation',
         }}
       >
         Back to scanner
@@ -374,19 +377,20 @@ export default function ShopPage() {
           className="floating-balance-pop"
           style={{
             position: 'fixed',
-            top: '20px',
-            right: '30px',
+            top: 'clamp(12px, 3vw, 20px)',
+            right: 'clamp(12px, 3vw, 30px)',
             backgroundColor: '#FFFFFF',
             borderRadius: '20px',
-            padding: '12px 20px',
+            padding: 'clamp(10px, 2.5vw, 12px) clamp(16px, 4vw, 20px)',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
             zIndex: 99,
             whiteSpace: 'nowrap',
+            maxWidth: 'calc(100vw - 24px)',
           }}
         >
           <div
             style={{
-              fontSize: '16px',
+              fontSize: 'clamp(14px, 3.5vw, 16px)',
               fontWeight: 400,
               color: '#000000',
               textAlign: 'center',
@@ -443,7 +447,7 @@ export default function ShopPage() {
             borderRadius:20,
             overflow: 'hidden',
             width: '100%',
-            maxWidth: 350, // 60% smaller than the original 900px width
+            maxWidth: 'clamp(280px, 75vw, 350px)', // 60% smaller than the original 900px width
             transform: `perspective(1000px) rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) translateY(${cardHover ? '-4px' : '0'})`,
             transformStyle: 'preserve-3d',
             transition: 'transform 0.18s ease-out, box-shadow 0.18s ease-out',
@@ -468,11 +472,11 @@ export default function ShopPage() {
           <div
             style={{
               position: 'absolute',
-              top: 43,
-              left: 30,
+              top: 'clamp(34px, 9vw, 43px)',
+              left: 'clamp(24px, 6vw, 30px)',
               // 15% smaller than original 170x225
-              width: 85,
-              height: 131,
+              width: 'clamp(68px, 18vw, 85px)',
+              height: 'clamp(105px, 28vw, 131px)',
               borderRadius: 10,
               border: '1px solidrgb(0, 0, 0)',
               overflow: 'hidden',
@@ -499,10 +503,10 @@ export default function ShopPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 12,
+                  fontSize: 'clamp(10px, 2.5vw, 12px)',
                   color: '#555',
                   textAlign: 'center',
-                  padding: 8,
+                  padding: 'clamp(6px, 1.5vw, 8px)',
                 }}
               >
                 Your photo will appear here after scanning.
@@ -539,7 +543,7 @@ export default function ShopPage() {
         <div
           ref={totalValueRef}
           style={{
-            fontSize: '18px',
+            fontSize: 'clamp(16px, 4vw, 18px)',
             fontWeight: 400,
             color: '#000000',
             textAlign: 'center',
@@ -609,13 +613,14 @@ export default function ShopPage() {
         <div
           className="marquee-text"
           style={{
-            fontSize: '24px',
+            fontSize: 'clamp(18px, 5vw, 24px)',
             fontWeight: 600,
             color: '#000000',
+            display: 'inline-flex',
           }}
         >
-          {Array.from({ length: 10 }).map((_, i) => (
-            <span key={i}>
+          {Array.from({ length: 20 }).map((_, i) => (
+            <span key={i} style={{ whiteSpace: 'nowrap' }}>
               Go on a shopping spree queen <span style={{ color: '#D11A4A' }}>★</span>{' '}
             </span>
           ))}
@@ -638,10 +643,10 @@ export default function ShopPage() {
           maxWidth: '1200px',
           width: '100%',
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          columnGap: '50px',
-          rowGap: '80px',
-          padding: '0 20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          columnGap: 'clamp(20px, 5vw, 50px)',
+          rowGap: 'clamp(40px, 8vw, 80px)',
+          padding: '0 clamp(10px, 3vw, 20px)',
         }}
       >
         {SHOP_ITEMS.map((item) => {
@@ -663,7 +668,7 @@ export default function ShopPage() {
               {/* Product Name */}
               <div
                 style={{
-                  fontSize: '20px',
+                  fontSize: 'clamp(16px, 4vw, 20px)',
                   fontWeight: 700,
                   color: '#000000',
                   textAlign: 'center',
@@ -679,8 +684,8 @@ export default function ShopPage() {
               <div
                 style={{
                   position: 'relative',
-                  width: '200px',
-                  height: '200px',
+                  width: 'clamp(150px, 40vw, 200px)',
+                  height: 'clamp(150px, 40vw, 200px)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -690,8 +695,8 @@ export default function ShopPage() {
                 <div
                   style={{
                     position: 'absolute',
-                    width: '180px',
-                    height: '180px',
+                    width: 'clamp(135px, 36vw, 180px)',
+                    height: 'clamp(135px, 36vw, 180px)',
                     backgroundColor: '#FFBB00',
                     transform: 'rotate(45deg)',
                     clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
@@ -703,14 +708,14 @@ export default function ShopPage() {
                 <div
                   style={{
                     position: 'relative',
-                    width: item.id === '7' ? '180px' : '140px',
-                    height: item.id === '7' ? '150px' : '140px',
+                    width: item.id === '7' ? 'clamp(135px, 36vw, 180px)' : 'clamp(105px, 28vw, 140px)',
+                    height: item.id === '7' ? 'clamp(112px, 30vw, 150px)' : 'clamp(105px, 28vw, 140px)',
                     backgroundColor: item.image ? 'transparent' : '#F0F0F0',
                     border: item.image ? 'none' : '2px solid #000000',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '12px',
+                    fontSize: 'clamp(10px, 2.5vw, 12px)',
                     color: '#666666',
                     zIndex: 1,
                   }}
@@ -734,17 +739,17 @@ export default function ShopPage() {
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: '10px',
-                    right: '10px',
-                    width: '60px',
-                    height: '60px',
+                    bottom: 'clamp(8px, 2vw, 10px)',
+                    right: 'clamp(8px, 2vw, 10px)',
+                    width: 'clamp(45px, 12vw, 60px)',
+                    height: 'clamp(45px, 12vw, 60px)',
                     borderRadius: '50%',
                     backgroundColor: '#FF0000',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#FFFFFF',
-                    fontSize: '12px',
+                    fontSize: 'clamp(10px, 2.5vw, 12px)',
                     fontWeight: 700,
                     border: '2px solid #000000',
                     zIndex: 2,
@@ -764,8 +769,8 @@ export default function ShopPage() {
                 onBlur={() => handleQuantityBlur(item)}
                 min="0"
                 style={{
-                  width: '80px',
-                  height: '40px',
+                  width: 'clamp(70px, 18vw, 80px)',
+                  height: '44px',
                   border: '2px solid #000000',
                   backgroundColor: '#FFFFFF',
                   textAlign: 'center',
@@ -773,6 +778,7 @@ export default function ShopPage() {
                   fontWeight: 600,
                   color: '#000000',
                   padding: '0',
+                  touchAction: 'manipulation',
                 }}
               />
 
@@ -790,17 +796,19 @@ export default function ShopPage() {
                   disabled={!canSell}
                   style={{
                     flex: 1,
-                    maxWidth: '120px',
-                    height: '45px',
+                    maxWidth: 'clamp(100px, 25vw, 120px)',
+                    minHeight: '44px',
+                    height: '44px',
                     backgroundColor: canSell ? '#FF0000' : '#CCCCCC',
                     color: '#FFFFFF',
                     border: 'none',
-                    fontSize: '16px',
+                    fontSize: 'clamp(14px, 3.5vw, 16px)',
                     fontWeight: 700,
                     cursor: canSell ? 'pointer' : 'not-allowed',
                     textTransform: 'uppercase',
                     letterSpacing: '1px',
                     boxShadow: '4px 4px 0 #000000',
+                    touchAction: 'manipulation',
                   }}
                 >
                   SELL
@@ -810,18 +818,20 @@ export default function ShopPage() {
                   disabled={!canBuy}
                   style={{
                     flex: 1,
-                    maxWidth: '120px',
-                    height: '45px',
+                    maxWidth: 'clamp(100px, 25vw, 120px)',
+                    minHeight: '44px',
+                    height: '44px',
                     backgroundColor: canBuy ? '#00AA00' : '#CCCCCC',
                     color: '#FFFFFF',
                     border: 'none',
-                    fontSize: '16px',
+                    fontSize: 'clamp(14px, 3.5vw, 16px)',
                     fontWeight: 700,
                     cursor: canBuy ? 'pointer' : 'not-allowed',
                     textTransform: 'uppercase',
                     letterSpacing: '1px',
                     boxShadow: canBuy ? '4px 4px 0 #000000' : 'none',
                     opacity: canBuy ? 1 : 0.6,
+                    touchAction: 'manipulation',
                   }}
                 >
                   BUY

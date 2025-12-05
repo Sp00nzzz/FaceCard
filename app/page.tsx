@@ -470,7 +470,7 @@ Example:
         >
           {Array.from({ length: 10 }).map((_, i) => (
             <span key={i}>
-              HOW MUCH IS YOUR FACE CARD? <span style={{ color: '#D11A4A' }}>♥</span>{' '}
+              Go check out your face card queen <span style={{ color: '#D11A4A' }}>♥</span>{' '}
             </span>
           ))}
         </div>
@@ -918,4 +918,3 @@ Example:
     </main>
   )
 }
-
