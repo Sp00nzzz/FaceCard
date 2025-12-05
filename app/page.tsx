@@ -415,12 +415,13 @@ Example:
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       alignItems: 'center',
       backgroundColor: '#fbfbfd',
       position: 'relative',
       padding: '0 clamp(10px, 3vw, 20px) clamp(40px, 8vw, 60px)',
-      gap: 'clamp(20px, 5vw, 40px)',
+      paddingTop: '0',
+      gap: 'clamp(25px, 5vw, 40px)',
       flexWrap: 'wrap',
     }}>
       {/* Marquee Animation Styles */}
@@ -448,9 +449,9 @@ Example:
           height: '1px',
           backgroundColor: '#000000',
           marginTop: '0px',
-          marginBottom: '-25px',
-          marginLeft: '-20px',
-          marginRight: '-20px',
+          marginBottom: 'clamp(-20px, -5vw, -25px)',
+          marginLeft: 'clamp(-10px, -3vw, -20px)',
+          marginRight: 'clamp(-10px, -3vw, -20px)',
         }}
       />
 
@@ -460,9 +461,9 @@ Example:
           width: '100vw',
           overflow: 'hidden',
           whiteSpace: 'nowrap',
-          marginBottom: '-25px',
-          marginLeft: '-20px',
-          marginRight: '-20px',
+          marginBottom: 'clamp(-20px, -5vw, -25px)',
+          marginLeft: 'clamp(-10px, -3vw, -20px)',
+          marginRight: 'clamp(-10px, -3vw, -20px)',
         }}
       >
         <div
@@ -488,9 +489,9 @@ Example:
           width: '100vw',
           height: '1px',
           backgroundColor: '#000000',
-          marginBottom: '40px',
-          marginLeft: '-20px',
-          marginRight: '-20px',
+          marginBottom: 'clamp(45px, 8vw, 40px)',
+          marginLeft: 'clamp(-10px, -3vw, -20px)',
+          marginRight: 'clamp(-10px, -3vw, -20px)',
         }}
       />
 
@@ -499,7 +500,7 @@ Example:
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 'clamp(20px, 5vw, 40px)',
+        gap: 'clamp(25px, 5vw, 40px)',
         flexWrap: 'wrap',
         width: '100%',
       }}>
@@ -507,7 +508,7 @@ Example:
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 'clamp(20px, 4vw, 32px)',
+        gap: 'clamp(25px, 4vw, 32px)',
       }}>
         <div style={{
           position: 'relative',

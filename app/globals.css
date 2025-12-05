@@ -89,5 +89,10 @@ body {
   input, textarea, select {
     font-size: 16px !important;
   }
+  
+  /* Move marquee to top and increase spacing on mobile */
+  main {
+    padding-top: 0 !important;
+  }
 }
 
