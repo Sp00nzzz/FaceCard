@@ -24,6 +24,15 @@ export default function Home() {
   const [valuation, setValuation] = useState<FaceAttribute[]>([])
   const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [currentDate, setCurrentDate] = useState<string>('')
+  const [currentTime, setCurrentTime] = useState<string>('')
+
+  // Set date/time on client side only to avoid hydration mismatch
+  useEffect(() => {
+    const now = new Date()
+    setCurrentDate(now.toLocaleDateString())
+    setCurrentTime(now.toLocaleTimeString())
+  }, [])
 
   useEffect(() => {
     const startWebcam = async () => {
@@ -188,10 +197,7 @@ export default function Home() {
       }
       
       // Log to console
-      console.log('=== Captured Image Sent to Gemini ===')
-      console.log('Image Data URL:', base64)
-      console.log('Image dimensions:', canvas.width, 'x', canvas.height)
-      console.log('====================================')
+
       
       resolve(base64Data)
     })
@@ -413,8 +419,8 @@ Example:
       alignItems: 'center',
       backgroundColor: '#fbfbfd',
       position: 'relative',
-      padding: '0 20px 60px',
-      gap: '40px',
+      padding: '0 clamp(10px, 3vw, 20px) clamp(40px, 8vw, 60px)',
+      gap: 'clamp(20px, 5vw, 40px)',
       flexWrap: 'wrap',
     }}>
       {/* Marquee Animation Styles */}
@@ -462,7 +468,7 @@ Example:
         <div
           className="marquee-text"
           style={{
-            fontSize: '24px',
+            fontSize: 'clamp(16px, 4vw, 24px)',
             fontWeight: 700,
             color: '#000000',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
@@ -493,14 +499,15 @@ Example:
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: '40px',
+        gap: 'clamp(20px, 5vw, 40px)',
         flexWrap: 'wrap',
+        width: '100%',
       }}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '32px',
+        gap: 'clamp(20px, 4vw, 32px)',
       }}>
         <div style={{
           position: 'relative',
@@ -516,8 +523,10 @@ Example:
           muted
           style={{
             transform: 'scaleX(-1)', // Mirror the webcam
-            width: '640px',
-            height: '480px',
+            width: '100%',
+            maxWidth: '640px',
+            height: 'auto',
+            aspectRatio: '4/3',
             objectFit: 'cover',
             display: 'block',
           }}
@@ -528,8 +537,9 @@ Example:
             position: 'absolute',
             top: 0,
             left: 0,
-            width: '640px',
-            height: '480px',
+            width: '100%',
+            maxWidth: '640px',
+            height: '100%',
             transform: 'scaleX(-1)', // Mirror the canvas to match the video
             pointerEvents: 'none',
             zIndex: 1,
@@ -541,8 +551,8 @@ Example:
               position: 'absolute',
               top: 0,
               left: 0,
-              width: '640px',
-              height: '480px',
+              width: '100%',
+              height: '100%',
               backgroundColor: '#ffffff',
               opacity: 0,
               animation: 'photoboothFlash 0.3s ease-out',
@@ -557,8 +567,8 @@ Example:
               position: 'absolute',
               top: 0,
               left: 0,
-              width: '640px',
-              height: '480px',
+              width: '100%',
+              height: '100%',
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
               display: 'flex',
               flexDirection: 'column',
@@ -628,7 +638,7 @@ Example:
                   )
                 })}
               </div>
-              <div style={{ fontSize: '16px', color: '#ffffff', textAlign: 'center', fontWeight: '500' }}>
+              <div style={{ fontSize: 'clamp(14px, 3.5vw, 16px)', color: '#ffffff', textAlign: 'center', fontWeight: '500' }}>
                 Analyzing your face card...
               </div>
             </div>
@@ -636,13 +646,13 @@ Example:
         )}
         </div>
         
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'clamp(12px, 3vw, 16px)', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
           <button
             onClick={scanFaceCard}
             disabled={isScanning || isLoading}
             style={{
-              padding: '12px 22px',
-              fontSize: '17px',
+              padding: 'clamp(12px, 3vw, 14px) clamp(20px, 5vw, 24px)',
+              fontSize: 'clamp(16px, 4vw, 17px)',
               fontWeight: '400',
               backgroundColor: (isScanning || isLoading) ? '#a0a0a0' : '#0071e3',
               color: 'white',
@@ -652,8 +662,10 @@ Example:
               boxShadow: (isScanning || isLoading) ? '0 2px 8px rgba(0, 0, 0, 0.1)' : '0 2px 8px rgba(0, 113, 227, 0.3)',
               transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               letterSpacing: '-0.022em',
-              minWidth: '200px',
+              minWidth: 'clamp(180px, 50vw, 200px)',
+              minHeight: '44px',
               opacity: (isScanning || isLoading) ? 0.6 : 1,
+              touchAction: 'manipulation',
             }}
             onMouseOver={(e) => {
               if (!isScanning && !isLoading) {
@@ -714,8 +726,8 @@ Example:
                 router.push('/shop')
               }}
               style={{
-                padding: '12px 22px',
-                fontSize: '17px',
+                padding: 'clamp(12px, 3vw, 14px) clamp(20px, 5vw, 24px)',
+                fontSize: 'clamp(16px, 4vw, 17px)',
                 fontWeight: '400',
                 backgroundColor: '#1d1d1f',
                 color: 'white',
@@ -725,7 +737,9 @@ Example:
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
                 transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 letterSpacing: '-0.022em',
-                minWidth: '120px',
+                minWidth: 'clamp(100px, 30vw, 120px)',
+                minHeight: '44px',
+                touchAction: 'manipulation',
               }}
               onMouseOver={(e) => {
                 e.currentTarget.style.backgroundColor = '#424245'
@@ -742,33 +756,6 @@ Example:
             </button>
           )}
         </div>
-        
-        {capturedImage && (
-          <div style={{
-            marginTop: '20px',
-            textAlign: 'center',
-          }}>
-            <div style={{
-              fontSize: '14px',
-              color: '#666',
-              marginBottom: '8px',
-            }}>
-              Image sent to Gemini:
-            </div>
-            <img
-              src={capturedImage}
-              alt="Captured face"
-              style={{
-                width: '200px',
-                height: '150px',
-                objectFit: 'cover',
-                borderRadius: '8px',
-                border: '1px solid #e0e0e0',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {showPopup && !isLoading && (
@@ -779,13 +766,14 @@ Example:
             backgroundSize: 'cover',
             backgroundRepeat: 'repeat',
             backgroundPosition: 'center',
-            padding: '32px',
+            padding: 'clamp(20px, 5vw, 32px)',
             borderRadius: '8px',
-            width: '400px',
+            width: 'clamp(280px, 90vw, 400px)',
+            maxWidth: '90vw',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04)',
             animation: 'slideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
             fontFamily: 'Monaco, "Courier New", monospace',
-            fontSize: '14px',
+            fontSize: 'clamp(12px, 3vw, 14px)',
             lineHeight: '1.6',
             overflow: 'hidden',
           }}
@@ -795,7 +783,8 @@ Example:
               src="/logo.png"
               alt="Logo"
               style={{
-                maxWidth: '200px',
+                maxWidth: 'clamp(150px, 40vw, 200px)',
+                width: '100%',
                 height: 'auto',
                 marginBottom: '8px',
               }}
@@ -804,8 +793,8 @@ Example:
                 e.currentTarget.style.display = 'none'
               }}
             />
-            <div style={{ fontSize: '12px', color: '#666' }}>
-              {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
+            <div style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', color: '#666' }}>
+              {currentDate} {currentTime}
             </div>
           </div>
           
