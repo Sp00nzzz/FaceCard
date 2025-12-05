@@ -408,15 +408,94 @@ Example:
       width: '100vw',
       minHeight: '100vh',
       display: 'flex',
-      flexDirection: 'row',
+      flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: '#fbfbfd',
       position: 'relative',
-      padding: '60px 40px',
+      padding: '0 20px 60px',
       gap: '40px',
       flexWrap: 'wrap',
     }}>
+      {/* Marquee Animation Styles */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes marquee {
+            0% {
+              transform: translateX(0);
+            }
+            100% {
+              transform: translateX(-50%);
+            }
+          }
+          .marquee-text {
+            display: inline-block;
+            animation: marquee 20s linear infinite;
+          }
+        `
+      }} />
+
+      {/* Thin horizontal divider above marquee */}
+      <div
+        style={{
+          width: '100vw',
+          height: '1px',
+          backgroundColor: '#000000',
+          marginTop: '0px',
+          marginBottom: '-25px',
+          marginLeft: '-20px',
+          marginRight: '-20px',
+        }}
+      />
+
+      {/* Marquee text */}
+      <div
+        style={{
+          width: '100vw',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          marginBottom: '-25px',
+          marginLeft: '-20px',
+          marginRight: '-20px',
+        }}
+      >
+        <div
+          className="marquee-text"
+          style={{
+            fontSize: '24px',
+            fontWeight: 700,
+            color: '#000000',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+          }}
+        >
+          {Array.from({ length: 10 }).map((_, i) => (
+            <span key={i}>
+              HOW MUCH IS YOUR FACE CARD? <span style={{ color: '#D11A4A' }}>♥</span>{' '}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Thin horizontal divider below marquee */}
+      <div
+        style={{
+          width: '100vw',
+          height: '1px',
+          backgroundColor: '#000000',
+          marginBottom: '40px',
+          marginLeft: '-20px',
+          marginRight: '-20px',
+        }}
+      />
+
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '40px',
+        flexWrap: 'wrap',
+      }}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -835,6 +914,7 @@ Example:
           </div>
         </div>
       )}
+      </div>
     </main>
   )
 }

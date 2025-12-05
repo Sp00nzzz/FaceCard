@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.png',
   },
+  openGraph: {
+    images: ['/socialsharing.png'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/socialsharing.png'],
+  },
 }
 
 export default function RootLayout({
