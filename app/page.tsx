@@ -193,6 +193,8 @@ export default function Home() {
       try {
         if (typeof window !== 'undefined') {
           window.sessionStorage.setItem('facecard_captured_image', base64)
+          // Reset all items to 0 when a new photo is taken
+          window.sessionStorage.removeItem('facecard_cart')
         }
       } catch (err) {
         console.warn('Unable to persist captured image to sessionStorage:', err)
