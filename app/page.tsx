@@ -111,30 +111,30 @@ export default function Home() {
         }
 
         try {
-          // Detect faces
-          const predictions = await model.estimateFaces(video, false)
+        // Detect faces
+        const predictions = await model.estimateFaces(video, false)
 
-          // Clear canvas
-          ctx.clearRect(0, 0, canvas.width, canvas.height)
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-          // Draw detection boxes
-          if (predictions.length > 0) {
-            predictions.forEach((prediction) => {
-              const start = prediction.topLeft as [number, number]
-              const end = prediction.bottomRight as [number, number]
-              const size = [end[0] - start[0], end[1] - start[1]]
-              
-              ctx.strokeStyle = '#ffffff'
-              ctx.lineWidth = 3
-              ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
-              ctx.shadowBlur = 4
-              ctx.strokeRect(start[0], start[1], size[0], size[1])
-              ctx.shadowBlur = 0 // Reset shadow
-            })
-          }
+        // Draw detection boxes
+        if (predictions.length > 0) {
+          predictions.forEach((prediction) => {
+            const start = prediction.topLeft as [number, number]
+            const end = prediction.bottomRight as [number, number]
+            const size = [end[0] - start[0], end[1] - start[1]]
+            
+            ctx.strokeStyle = '#ffffff'
+            ctx.lineWidth = 3
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+            ctx.shadowBlur = 4
+            ctx.strokeRect(start[0], start[1], size[0], size[1])
+            ctx.shadowBlur = 0 // Reset shadow
+          })
+        }
 
-          // Continue detection loop
-          requestAnimationFrame(detect)
+        // Continue detection loop
+        requestAnimationFrame(detect)
         } catch (error) {
           console.error('Error in face detection loop:', error)
           // Continue loop even if there's an error
@@ -523,7 +523,7 @@ Example:
         gap: 'clamp(25px, 5vw, 40px)',
         flexWrap: 'wrap',
         width: '100%',
-      }}>
+    }}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',

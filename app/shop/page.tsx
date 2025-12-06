@@ -15,26 +15,36 @@ interface ShopItem {
 
 const SHOP_ITEMS: ShopItem[] = [
   { id: '6', name: 'Pizza Slice', price: 3.99, image: '/Items/pizzaslice.png' },
+  { id: '21', name: 'Starbucks Coffee', price: 6.99 },
   { id: '1', name: 'Sonny Angel', price: 12.99, image: '/Items/sonny.png' },
+  { id: '22', name: 'Nike Air Force 1', price: 110.99 },
   { id: '3', name: '1 Year of 𝕏 Premium ', price: 96.99, image: '/Items/Xpremium.png' },
   { id: '2', name: 'Aritzia Hoodie', price: 120.99, image: '/Items/AritziaHoodie.png'},
+  { id: '23', name: 'MacBook Air', price: 1299.99 },
   { id: '8', name: 'Airpods', price: 249.99, image: '/Items/airpods.png' },
   { id: '5', name: 'Steam Deck', price: 549.99, image: '/Items/SteamDeck.png' },
   { id: '17', name: 'Chanel Glasses', price: 850.99, image: '/Items/chanelglasses.png' },
   { id: '9', name: 'iPhone 16', price: 999.99, image: '/Items/iphone.png' },
+  { id: '24', name: 'Rolex Watch', price: 8500.99 },
   { id: '10', name: 'Gorilla', price: 2500.99, image: '/Items/gorilla.png' },
   { id: '14', name: 'Trip to Japan', price: 3500.99, image: '/Items/Japan.png' },
+  { id: '25', name: 'Tesla Model 3', price: 38990.99 },
   { id: '18', name: 'Tiffany & Co. Ring', price: 15000.99, image: '/Items/tiffanyRing.png' },
   { id: '15', name: 'Ford F1-50', price: 45000.99, image: '/Items/Ford F150.png' },
   { id: '4', name: 'Hermès Birkin Bag', price: 45000.99, image: '/Items/BirkinBag.png' },
   { id: '19', name: 'Unlimited Nobu', price: 50000.99, image: '/Items/Nobu.png' },
+  { id: '26', name: 'Lamborghini Huracán', price: 250000.99 },
   { id: '7', name: 'Spot®', price: 74900.99, image: '/Items/robotDog.png' },
   { id: '12', name: 'Porsche', price: 95000.99, image: '/Items/porsche.png' },
   { id: '11', name: 'Goose Farm', price: 125000.99, image: '/Items/goosefarm.png' },
+  { id: '27', name: 'Private Jet', price: 1500000.99},
   { id: '20', name: 'Drake Feature', price: 250000.99, image: '/Items/Drake.png' },
   { id: '13', name: 'Single Family Home', price: 450000.99, image: '/Items/house.png' },
+  { id: '28', name: 'Yacht', price: 5000000.99},
+  { id: '29', name: 'Island', price: 10000000.99 },
+  { id: '30', name: 'Space Trip W/ Elon', price: 55000000.99 },
   { id: '16', name: 'Sign Lebron James', price: 2500000.99, image: '/Items/lebronjames.png' },
-]
+].sort((a, b) => a.price - b.price)
 
 interface FaceAttribute {
   name: string
@@ -82,8 +92,42 @@ export default function ShopPage() {
           }
           
           const total = calculateTotal()
-          setBalance(total)
-          setDisplayBalance(total)
+          
+          // Load saved cart quantities from sessionStorage
+          const storedCart = window.sessionStorage.getItem('facecard_cart')
+          if (storedCart) {
+            try {
+              const parsedCart = JSON.parse(storedCart) as Record<string, number>
+              setQuantities(parsedCart)
+              
+              // Initialize input values from saved quantities
+              const inputVals: Record<string, string> = {}
+              Object.keys(parsedCart).forEach(itemId => {
+                if (parsedCart[itemId] > 0) {
+                  inputVals[itemId] = String(parsedCart[itemId])
+                }
+              })
+              setInputValues(inputVals)
+              
+              // Calculate spent amount and update balance
+              let spent = 0
+              SHOP_ITEMS.forEach(item => {
+                const qty = parsedCart[item.id] || 0
+                spent += item.price * qty
+              })
+              
+              const remainingBalance = total - spent
+              setBalance(remainingBalance)
+              setDisplayBalance(remainingBalance)
+            } catch (err) {
+              console.warn('Unable to parse cart data:', err)
+              setBalance(total)
+              setDisplayBalance(total)
+            }
+          } else {
+            setBalance(total)
+            setDisplayBalance(total)
+          }
         } else {
           // If no valuation data, redirect back to home
           router.push('/')
@@ -234,15 +278,24 @@ export default function ShopPage() {
     // Buy 1 item at a time
     if (balance >= item.price) {
       const newQuantity = (quantities[item.id] || 0) + 1
-      setBalance(prev => prev - item.price)
-      setQuantities(prev => ({
-        ...prev,
+      const newQuantities = {
+        ...quantities,
         [item.id]: newQuantity,
-      }))
+      }
+      setBalance(prev => prev - item.price)
+      setQuantities(newQuantities)
       setInputValues(prev => ({
         ...prev,
         [item.id]: String(newQuantity),
       }))
+      // Save to sessionStorage
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('facecard_cart', JSON.stringify(newQuantities))
+        }
+      } catch (err) {
+        console.warn('Unable to save cart:', err)
+      }
     }
   }
 
@@ -250,14 +303,23 @@ export default function ShopPage() {
     const quantity = quantities[item.id] || 0
     if (quantity > 0) {
       setBalance(prev => prev + item.price)
-      setQuantities(prev => ({
-        ...prev,
+      const newQuantities = {
+        ...quantities,
         [item.id]: quantity - 1,
-      }))
+      }
+      setQuantities(newQuantities)
       setInputValues(prev => ({
         ...prev,
         [item.id]: String(quantity - 1),
       }))
+      // Save to sessionStorage
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('facecard_cart', JSON.stringify(newQuantities))
+        }
+      } catch (err) {
+        console.warn('Unable to save cart:', err)
+      }
     }
   }
 
@@ -277,15 +339,24 @@ export default function ShopPage() {
     // If empty on blur, set to 0 and refund money
     if (inputValue === '' || inputValue === '-') {
       const refund = currentQuantity * item.price
-      setQuantities(prev => ({
-        ...prev,
+      const newQuantities = {
+        ...quantities,
         [itemId]: 0,
-      }))
+      }
+      setQuantities(newQuantities)
       setBalance(prev => prev + refund)
       setInputValues(prev => ({
         ...prev,
         [itemId]: '0',
       }))
+      // Save to sessionStorage
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('facecard_cart', JSON.stringify(newQuantities))
+        }
+      } catch (err) {
+        console.warn('Unable to save cart:', err)
+      }
       return
     }
     
@@ -301,27 +372,45 @@ export default function ShopPage() {
         const costDiff = actualDiff * item.price
         
         // Update quantity and balance
-        setQuantities(prev => ({
-          ...prev,
+        const newQuantities = {
+          ...quantities,
           [itemId]: finalQuantity,
-        }))
+        }
+        setQuantities(newQuantities)
         setBalance(prev => prev - costDiff)
         setInputValues(prev => ({
           ...prev,
           [itemId]: String(finalQuantity),
         }))
+        // Save to sessionStorage
+        try {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem('facecard_cart', JSON.stringify(newQuantities))
+          }
+        } catch (err) {
+          console.warn('Unable to save cart:', err)
+        }
       } else {
         // Decreasing quantity (selling back) - always allowed
         const costDiff = quantityDiff * item.price
-        setQuantities(prev => ({
-          ...prev,
+        const newQuantities = {
+          ...quantities,
           [itemId]: newQuantity,
-        }))
+        }
+        setQuantities(newQuantities)
         setBalance(prev => prev - costDiff) // costDiff is negative, so this adds money
         setInputValues(prev => ({
           ...prev,
           [itemId]: String(newQuantity),
         }))
+        // Save to sessionStorage
+        try {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem('facecard_cart', JSON.stringify(newQuantities))
+          }
+        } catch (err) {
+          console.warn('Unable to save cart:', err)
+        }
       }
     } else {
       // Invalid input, revert to current quantity
@@ -369,6 +458,59 @@ export default function ShopPage() {
         }}
       >
         Back to scanner
+      </button>
+
+      {/* Early-2000s eBay Style Checkout Button */}
+      <button
+        onClick={() => {
+          // Store quantities in sessionStorage for checkout page
+          try {
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.setItem('facecard_cart', JSON.stringify(quantities))
+            }
+          } catch (err) {
+            console.warn('Unable to store cart:', err)
+          }
+          router.push('/checkout')
+        }}
+        style={{
+          position: 'absolute',
+          top: 'clamp(12px, 3vw, 16px)',
+          right: 'clamp(12px, 3vw, 20px)',
+          padding: '12px 24px',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          color: '#FFFFFF',
+          background: 'linear-gradient(to bottom, #CC0000 0%, #FF0000 50%, #CC0000 100%)',
+          border: '2px solid #990000',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          zIndex: 100,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.2)',
+          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+          minHeight: '44px',
+          touchAction: 'manipulation',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'linear-gradient(to bottom, #DD0000 0%, #FF1111 50%, #DD0000 100%)'
+          e.currentTarget.style.boxShadow = '0 3px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.3)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'linear-gradient(to bottom, #CC0000 0%, #FF0000 50%, #CC0000 100%)'
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.2)'
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.transform = 'translateY(1px)'
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(0,0,0,0.2)'
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.2)'
+        }}
+      >
+        CHECKOUT
       </button>
 
       {/* Floating Balance Indicator */}
