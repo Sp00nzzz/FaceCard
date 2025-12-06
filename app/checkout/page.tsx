@@ -289,6 +289,35 @@ export default function CheckoutPage() {
   const FRAME_W = 1000 
   const FRAME_H = 1840 // Scaled proportionally to maintain 9:16 aspect ratio (880 * 16/9)
   const EXPORT_SCALE = 1 // 1x = 1000x1840 PNG
+
+  // Helper function to wait for all images to load (mobile-safe)
+  const waitForImages = (root: HTMLElement): Promise<void> => {
+    const images = Array.from(root.querySelectorAll('img'))
+    return Promise.all(
+      images.map((img) => {
+        // If image is already loaded, resolve immediately
+        if (img.complete && img.naturalWidth > 0) {
+          return Promise.resolve()
+        }
+        // Otherwise, wait for load or error
+        return new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            console.warn('Image load timeout:', img.src)
+            resolve()
+          }, 10000) // 10 second timeout
+          img.onload = () => {
+            clearTimeout(timeout)
+            resolve()
+          }
+          img.onerror = () => {
+            console.error('Image load error:', img.src)
+            clearTimeout(timeout)
+            resolve() // Resolve even on error to not block the process
+          }
+        })
+      })
+    ).then(() => undefined)
+  }
   
   // Calculate scale for license card to match receipt width
   // Receipt width: clamp(280px, 90vw, 400px) * 0.6 scale = max 240px rendered
@@ -327,47 +356,32 @@ export default function CheckoutPage() {
         // Wait for all images to load in the cloned node
         const images = clonedNode.querySelectorAll('img')
         console.log(`Waiting for ${images.length} images to load...`)
-        
-        await Promise.all(
-          Array.from(images).map((img) => {
-            if (img.complete && img.naturalWidth > 0) return Promise.resolve()
-            return new Promise((resolve) => {
-              const timeout = setTimeout(() => {
-                console.warn('Image load timeout:', img.src)
-                resolve(undefined)
-              }, 10000) // Increased timeout to 10 seconds
-              img.onload = () => {
-                clearTimeout(timeout)
-                resolve(undefined)
-              }
-              img.onerror = () => {
-                console.error('Image load error:', img.src)
-                clearTimeout(timeout)
-                resolve(undefined)
-              }
-            })
-          })
-        )
+        await waitForImages(clonedNode)
 
         // Additional delay to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 500))
 
         console.log('Importing dom-to-image-more...')
         // @ts-ignore - dom-to-image-more doesn't have type definitions
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
         
-        console.log('Rendering to PNG...')
+        // Clamp scale for mobile (iOS Safari has memory limits)
+        const deviceScale = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+        const scale = Math.min(deviceScale, 2) // Max 2x to prevent memory issues on mobile
+        const exportWidth = FRAME_W * scale
+        const exportHeight = FRAME_H * scale
+        
+        console.log('Rendering to PNG...', { scale, exportWidth, exportHeight })
         // Render at high resolution using the cloned node
         const dataUrl = await domtoimage.toPng(clonedNode, {
-          width: FRAME_W * EXPORT_SCALE,
-          height: FRAME_H * EXPORT_SCALE,
+          width: exportWidth,
+          height: exportHeight,
           style: {
-            // IMPORTANT: undo the on-screen scale for the export
-            transform: `scale(${EXPORT_SCALE})`,
+            transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            width: `${FRAME_W * EXPORT_SCALE}px`,
-            height: `${FRAME_H * EXPORT_SCALE}px`,
+            width: `${exportWidth}px`,
+            height: `${exportHeight}px`,
           },
           quality: 1,
           cacheBust: true,
@@ -487,47 +501,32 @@ export default function CheckoutPage() {
         // Wait for all images to load in the cloned node
         const images = clonedNode.querySelectorAll('img')
         console.log(`Waiting for ${images.length} images to load in Story2...`)
-        
-        await Promise.all(
-          Array.from(images).map((img) => {
-            if (img.complete && img.naturalWidth > 0) return Promise.resolve()
-            return new Promise((resolve) => {
-              const timeout = setTimeout(() => {
-                console.warn('Story2 image load timeout:', img.src)
-                resolve(undefined)
-              }, 10000) // Increased timeout to 10 seconds
-              img.onload = () => {
-                clearTimeout(timeout)
-                resolve(undefined)
-              }
-              img.onerror = () => {
-                console.error('Story2 image load error:', img.src)
-                clearTimeout(timeout)
-                resolve(undefined)
-              }
-            })
-          })
-        )
+        await waitForImages(clonedNode)
 
         // Additional delay to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 500))
 
         console.log('Importing dom-to-image-more for Story2...')
         // @ts-ignore - dom-to-image-more doesn't have type definitions
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
         
-        console.log('Rendering Story2 to PNG...')
+        // Clamp scale for mobile (iOS Safari has memory limits)
+        const deviceScale = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+        const scale = Math.min(deviceScale, 2) // Max 2x to prevent memory issues on mobile
+        const exportWidth = FRAME_W * scale
+        const exportHeight = FRAME_H * scale
+        
+        console.log('Rendering Story2 to PNG...', { scale, exportWidth, exportHeight })
         // Render at high resolution using the cloned node
         const dataUrl = await domtoimage.toPng(clonedNode, {
-          width: FRAME_W * EXPORT_SCALE,
-          height: FRAME_H * EXPORT_SCALE,
+          width: exportWidth,
+          height: exportHeight,
           style: {
-            // IMPORTANT: undo the on-screen scale for the export
-            transform: `scale(${EXPORT_SCALE})`,
+            transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            width: `${FRAME_W * EXPORT_SCALE}px`,
-            height: `${FRAME_H * EXPORT_SCALE}px`,
+            width: `${exportWidth}px`,
+            height: `${exportHeight}px`,
           },
           quality: 1,
           cacheBust: true,
@@ -653,47 +652,32 @@ export default function CheckoutPage() {
         // Wait for all images to load in the cloned node
         const images = clonedNode.querySelectorAll('img')
         console.log(`Waiting for ${images.length} images to load in Story3...`)
-        
-        await Promise.all(
-          Array.from(images).map((img) => {
-            if (img.complete && img.naturalWidth > 0) return Promise.resolve()
-            return new Promise((resolve) => {
-              const timeout = setTimeout(() => {
-                console.warn('Story3 image load timeout:', img.src)
-                resolve(undefined)
-              }, 10000) // Increased timeout to 10 seconds
-              img.onload = () => {
-                clearTimeout(timeout)
-                resolve(undefined)
-              }
-              img.onerror = () => {
-                console.error('Story3 image load error:', img.src)
-                clearTimeout(timeout)
-                resolve(undefined)
-              }
-            })
-          })
-        )
+        await waitForImages(clonedNode)
 
         // Additional delay to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 500))
 
         console.log('Importing dom-to-image-more for Story3...')
         // @ts-ignore - dom-to-image-more doesn't have type definitions
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
         
-        console.log('Rendering Story3 to PNG...')
+        // Clamp scale for mobile (iOS Safari has memory limits)
+        const deviceScale = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+        const scale = Math.min(deviceScale, 2) // Max 2x to prevent memory issues on mobile
+        const exportWidth = FRAME_W * scale
+        const exportHeight = FRAME_H * scale
+        
+        console.log('Rendering Story3 to PNG...', { scale, exportWidth, exportHeight })
         // Render at high resolution using the cloned node
         const dataUrl = await domtoimage.toPng(clonedNode, {
-          width: FRAME_W * EXPORT_SCALE,
-          height: FRAME_H * EXPORT_SCALE,
+          width: exportWidth,
+          height: exportHeight,
           style: {
-            // IMPORTANT: undo the on-screen scale for the export
-            transform: `scale(${EXPORT_SCALE})`,
+            transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            width: `${FRAME_W * EXPORT_SCALE}px`,
-            height: `${FRAME_H * EXPORT_SCALE}px`,
+            width: `${exportWidth}px`,
+            height: `${exportHeight}px`,
           },
           quality: 1,
           cacheBust: true,
@@ -1023,6 +1007,7 @@ export default function CheckoutPage() {
             <img
               src="/InstagramStory/Story1.png"
               alt="Face Card Shopping Spree"
+              crossOrigin="anonymous"
               style={{
                 position: 'absolute',
                 top: 0,
@@ -1053,6 +1038,7 @@ export default function CheckoutPage() {
               <img
                 alt="Face Card Baddie License"
                 src={IDcardBG}
+                crossOrigin="anonymous"
                 style={{
                   display: 'block',
                   width: '100%',
@@ -1080,6 +1066,7 @@ export default function CheckoutPage() {
                   <img
                     src={profileImage}
                     alt="Captured face"
+                    crossOrigin="anonymous"
                     style={{
                       width: '100%',
                       height: '100%',
@@ -1209,6 +1196,7 @@ export default function CheckoutPage() {
                         <img
                           src={item.image}
                           alt={item.name}
+                          crossOrigin="anonymous"
                           style={{
                             width: '100%',
                             height: '100%',
@@ -1302,6 +1290,7 @@ export default function CheckoutPage() {
               <img
                 src="/InstagramStory/Story2.png"
                 alt="Story 2 Background"
+                crossOrigin="anonymous"
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -1335,6 +1324,7 @@ export default function CheckoutPage() {
                   <img
                     alt="Face Card Baddie License"
                     src={IDcardBG}
+                    crossOrigin="anonymous"
                     style={{
                       display: 'block',
                       width: '100%',
@@ -1360,6 +1350,7 @@ export default function CheckoutPage() {
                     <img
                       src={profileImage}
                       alt="Captured face"
+                      crossOrigin="anonymous"
                       style={{
                         width: '100%',
                         height: '100%',
@@ -1405,6 +1396,7 @@ export default function CheckoutPage() {
                     <img
                       src="/logo.png"
                       alt="Logo"
+                      crossOrigin="anonymous"
                       style={{
                         maxWidth: 'clamp(150px, 40vw, 200px)',
                         width: '100%',
@@ -1611,6 +1603,7 @@ export default function CheckoutPage() {
                 <img
                   src="/InstagramStory/Story3.png"
                   alt="Face Card Shopping Spree"
+                  crossOrigin="anonymous"
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -1725,6 +1718,7 @@ export default function CheckoutPage() {
                             <img
                               src={item.image}
                               alt={item.name}
+                              crossOrigin="anonymous"
                               style={{
                                 width: '100%',
                                 height: '100%',
