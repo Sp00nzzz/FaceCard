@@ -35,7 +35,7 @@ const SHOP_ITEMS: ShopItem[] = [
   { id: '19', name: 'Unlimited Nobu', price: 50000.99, image: '/Items/Nobu.png' },
   { id: '20', name: 'Drake Feature', price: 250000.99, image: '/Items/Drake.png' },
   { id: '21', name: 'Matcha Latte', price: 6.99, image: '/Items/matcha.png' },
-  { id: '22', name: 'Hire Rico Jackson', price: 110.99, image: '/Items/rico.png' },
+  { id: '22', name: 'Hire Rico Jackson', price: 110.99, image: '/Items/Rico.png' },
   { id: '23', name: 'Pibble', price: 1299.99, image: '/Items/pibble.png' },
   { id: '24', name: '1st Edition Charizard', price: 8500.99, image: '/Items/charizard.png' },
   { id: '25', name: 'Tesla Cybertruck', price: 38990.99, image: '/Items/Cybertruck.png' },
@@ -43,7 +43,7 @@ const SHOP_ITEMS: ShopItem[] = [
   { id: '27', name: 'Private Jet', price: 1500000.99, image: '/Items/jet.png'},
   { id: '28', name: 'Yacht', price: 5000000.99, image: '/Items/yacht.png' },
   { id: '29', name: 'Island', price: 10000000.99, image: '/Items/island.png' },
-  { id: '30', name: 'Trip to Space ', price: 55000000.99, image: '/Items/spaceship.png' },
+  { id: '30', name: 'Trip to Space ', price: 55000000.99, image: '/Items/Spaceship.png' },
   { id: '31', name: 'Movie W/ Leonardo', price: 20000000.99, image: '/Items/leonardo.png' },
 
 ].sort((a, b) => a.price - b.price)
