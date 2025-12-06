@@ -207,6 +207,63 @@ export default function Home() {
     })
   }
 
+  // Rate limiting: 20 requests per minute
+  const checkRateLimit = (): { allowed: boolean; remaining: number; resetTime: number } => {
+    const RATE_LIMIT = 20 // requests per minute
+    const WINDOW_MS = 60 * 1000 // 1 minute in milliseconds
+    
+    if (typeof window === 'undefined') {
+      return { allowed: true, remaining: RATE_LIMIT, resetTime: Date.now() + WINDOW_MS }
+    }
+    
+    try {
+      const stored = window.sessionStorage.getItem('facecard_api_requests')
+      const now = Date.now()
+      
+      let requests: number[] = []
+      if (stored) {
+        requests = JSON.parse(stored)
+        // Remove requests older than 1 minute
+        requests = requests.filter((timestamp: number) => now - timestamp < WINDOW_MS)
+      }
+      
+      const remaining = RATE_LIMIT - requests.length
+      const allowed = remaining > 0
+      const oldestRequest = requests.length > 0 ? Math.min(...requests) : now
+      const resetTime = oldestRequest + WINDOW_MS
+      
+      return { allowed, remaining: Math.max(0, remaining), resetTime }
+    } catch (err) {
+      console.warn('Error checking rate limit:', err)
+      return { allowed: true, remaining: RATE_LIMIT, resetTime: Date.now() + WINDOW_MS }
+    }
+  }
+  
+  const recordApiRequest = (): void => {
+    if (typeof window === 'undefined') return
+    
+    try {
+      const stored = window.sessionStorage.getItem('facecard_api_requests')
+      const now = Date.now()
+      const WINDOW_MS = 60 * 1000
+      
+      let requests: number[] = []
+      if (stored) {
+        requests = JSON.parse(stored)
+        // Remove requests older than 1 minute
+        requests = requests.filter((timestamp: number) => now - timestamp < WINDOW_MS)
+      }
+      
+      // Add current request
+      requests.push(now)
+      
+      // Store updated requests
+      window.sessionStorage.setItem('facecard_api_requests', JSON.stringify(requests))
+    } catch (err) {
+      console.warn('Error recording API request:', err)
+    }
+  }
+
   const analyzeFacialAttributesWithGemini = async (imageBase64: string): Promise<FaceAttribute[]> => {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY
     
@@ -218,8 +275,18 @@ export default function Home() {
         { name: 'Mesmerizing lip curvature', price: 22.99 },
       ]
     }
+    
+    // Check rate limit before making API call
+    const rateLimit = checkRateLimit()
+    if (!rateLimit.allowed) {
+      const resetSeconds = Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
+      throw new Error(`Rate limit exceeded. Please wait ${resetSeconds} seconds before trying again. (Limit: 20 requests per minute)`)
+    }
 
     try {
+      // Record the API request before making the call
+      recordApiRequest()
+      
       const genAI = new GoogleGenerativeAI(apiKey)
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
@@ -321,7 +388,7 @@ Example:
         setValuation(detectedAttributes)
       } catch (error) {
         console.error('Error analyzing face:', error)
-        // Fallback attributes
+        // Fallback attributes for any errors (including rate limit)
         setValuation([
           { name: 'Photogenic bone structure', price: 34.50 },
           { name: 'Radiant skin luminosity', price: 36.50 },
