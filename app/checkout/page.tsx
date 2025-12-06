@@ -1560,7 +1560,7 @@ export default function CheckoutPage() {
                 background: '#fff',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
                 overflow: 'hidden',
-                display: flattenedImage3 ? 'none' : 'flex',
+                display: 'flex', // Always show HTML for debugging - red square visible (was: flattenedImage3 ? 'none' : 'flex')
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1598,11 +1598,12 @@ export default function CheckoutPage() {
                         top: '40%',
                         left: '53%',
                         transform: 'translate(-50%, calc(5% - 70px))',
-                        width: '600px', // ~17.6% of 1080px - proportional to Story1
-                        height: '750px', // Proportional to Story1
+                        width: '730px', // ~17.6% of 1080px - proportional to Story1
+                        height: '500px', // Proportional to Story1
                         zIndex: 9,
                         pointerEvents: 'none',
                         overflow: 'visible',
+                        boxSizing: 'border-box',
                       }}
                     >
                 {purchasedItems.map((item, index) => {
@@ -1708,10 +1709,10 @@ export default function CheckoutPage() {
               </div>
             </div>
             
-            {/* Display rendered Story3 image once generated - in same animated container */}
-            {flattenedImage3 && (
+            {/* Display rendered Story3 image once generated - HIDDEN to keep debugging red square visible */}
+            {false && flattenedImage3 && (
               <img
-                src={flattenedImage3}
+                src={flattenedImage3 || undefined}
                 alt="FaceCard Story3 Export"
                 style={{
                   width: `${FRAME_W}px`,
