@@ -621,6 +621,27 @@ export default function CheckoutPage() {
         clonedNode.style.visibility = 'visible'
         clonedNode.style.display = 'flex'
         clonedNode.style.zIndex = '-1'
+        // Ensure cloned node has white background for rendering (not transparent)
+        clonedNode.style.background = '#fff'
+        // Ensure overflow is visible in cloned node to capture red box
+        clonedNode.style.overflow = 'visible'
+        
+        // Find and update all containers to ensure red box is visible
+        const mainContainer = clonedNode.querySelector('[data-checkout-content-3]') as HTMLElement
+        if (mainContainer) {
+          mainContainer.style.overflow = 'visible'
+        }
+        
+        // Find all divs and ensure those with absolute positioning have visible overflow
+        const allDivs = clonedNode.querySelectorAll('div') as NodeListOf<HTMLElement>
+        allDivs.forEach((div) => {
+          const style = window.getComputedStyle(div)
+          if (style.position === 'absolute') {
+            div.style.overflow = 'visible'
+          }
+
+        })
+        
         document.body.appendChild(clonedNode)
         
         console.log('Starting Story3 image generation...', {
@@ -722,7 +743,9 @@ export default function CheckoutPage() {
         hasContentChanged,
         contentHash: contentHash3,
         storedHash: contentHashRef3.current,
-        purchasedItemsCount: purchasedItems.length
+        purchasedItemsCount: purchasedItems.length,
+        isGenerating: isGenerating3,
+        hasRef: !!checkoutRef3.current
       })
       
       // If content changed, clear existing image and sessionStorage
@@ -739,17 +762,26 @@ export default function CheckoutPage() {
         }
       }
       
-      // Only generate if we don't have an image
-      if (!flattenedImage3) {
-        console.log('Story3: Starting generation (no existing image)')
+      // Only generate if we don't have an image and we're not already generating
+      if (!flattenedImage3 && !isGenerating3) {
+        console.log('Story3: Starting generation (no existing image, not generating)')
         // Longer delay to ensure DOM is fully rendered and images are loaded
         const timer = setTimeout(() => {
+          console.log('Story3: Timer fired, calling generateFlattenedImage3')
           generateFlattenedImage3()
         }, 2000) // Delay after Story1 and Story2
         
-        return () => clearTimeout(timer)
+        return () => {
+          console.log('Story3: Cleaning up timer')
+          clearTimeout(timer)
+        }
       } else {
-        console.log('Story3: Using existing flattened image')
+        if (flattenedImage3) {
+          console.log('Story3: Using existing flattened image')
+        }
+        if (isGenerating3) {
+          console.log('Story3: Already generating, skipping')
+        }
       }
     } else {
       console.log('Story3: Conditions not met for generation', {
@@ -1560,7 +1592,7 @@ export default function CheckoutPage() {
                 background: '#fff',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
                 overflow: 'hidden',
-                display: 'flex', // Always show HTML for debugging - red square visible (was: flattenedImage3 ? 'none' : 'flex')
+                display: flattenedImage3 ? 'none' : 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1590,129 +1622,129 @@ export default function CheckoutPage() {
                   }}
                 />
             
-                  {/* Purchased Items in Shopping Cart */}
-                  {purchasedItems.length > 0 && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '40%',
-                        left: '53%',
-                        transform: 'translate(-50%, calc(5% - 70px))',
-                        width: '730px', // ~17.6% of 1080px - proportional to Story1
-                        height: '500px', // Proportional to Story1
-                        zIndex: 9,
-                        pointerEvents: 'none',
-                        overflow: 'visible',
-                        boxSizing: 'border-box',
-                      }}
-                    >
-                {purchasedItems.map((item, index) => {
-                  // Evenly distribute items across the cart area with slight randomization
-                  // Using item.id as seed for consistent positioning per item
-                  const seed = item.id.charCodeAt(0) + (item.id.length > 1 ? item.id.charCodeAt(1) : 0)
-                  const random1 = (seed * 9301 + 49297) % 233280 / 233280
-                  const random2 = ((seed * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
-                  const random3 = (((seed * 9301 + 49297) * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
-                  
-                  const totalItems = purchasedItems.length
-                  
-                  let baseLeft: number
-                  let baseTop: number
-                  
-                  // For 1-4 items: use more random positioning with good spacing
-                  if (totalItems >= 1 && totalItems <= 4) {
-                    // Define zones to ensure spacing - divide cart into quadrants/sections
-                    const zones = [
-                      // Top-left, top-right, bottom-left, bottom-right
-                      { left: 20, top: 25 },  // Zone 1: top-left
-                      { left: 80, top: 25 },  // Zone 2: top-right
-                      { left: 20, top: 75 },  // Zone 3: bottom-left
-                      { left: 80, top: 75 },  // Zone 4: bottom-right
-                    ]
-                    
-                    // Assign each item to a different zone to ensure spacing
-                    const zoneIndex = index % zones.length
-                    const zone = zones[zoneIndex]
-                    
-                    // Add significant randomness within each zone (±15% variation)
-                    const zoneRandom1 = ((seed * 7 + index * 13) % 233280) / 233280
-                    const zoneRandom2 = (((seed * 7 + index * 13) * 11) % 233280) / 233280
-                    
-                    baseLeft = zone.left + (zoneRandom1 - 0.5) * 30 // ±15% variation
-                    baseTop = zone.top + (zoneRandom2 - 0.5) * 30 // ±15% variation
-                  } else {
-                    // For 5+ items: use grid-based distribution with randomness
-                    const cols = Math.ceil(Math.sqrt(totalItems * 1.2))
-                    const rows = Math.ceil(totalItems / cols)
-                    
-                    const gridCol = index % cols
-                    const gridRow = Math.floor(index / cols)
-                    
-                    // Base positions spread across the cart area (10% to 90% horizontally, 15% to 85% vertically)
-                    const baseGridLeft = cols > 1 ? 10 + (gridCol / (cols - 1)) * 80 : 50
-                    const baseGridTop = rows > 1 ? 15 + (gridRow / (rows - 1)) * 70 : 50
-                    
-                    // Add randomness to the base grid position (up to 25% variation)
-                    baseLeft = baseGridLeft + (random1 - 0.5) * 25
-                    baseTop = baseGridTop + (random2 - 0.5) * 25
-                  }
-                  
-                  // Additional random offset for more variation (larger range for 1-4 items)
-                  const additionalRandom1 = ((seed * 17 + index * 23) % 233280) / 233280
-                  const additionalRandom2 = (((seed * 17 + index * 23) * 19) % 233280) / 233280
-                  const offsetRange = totalItems <= 4 ? 15 : 20 // More offset for fewer items
-                  const leftOffset = (additionalRandom1 - 0.5) * offsetRange
-                  const topOffset = (additionalRandom2 - 0.5) * offsetRange
-                  
-                  // Final positions with all randomization, clamped to stay within bounds
-                  const leftPercent = Math.max(10, Math.min(90, baseLeft + leftOffset))
-                  const topPercent = Math.max(15, Math.min(85, baseTop + topOffset))
-                  
-                  // Slight random rotation (-12 to 12 degrees for more variation)
-                  const rotation = (random3 * 24) - 12
-                  
-                  // Fixed size for all items - scaled 50x bigger (90px * 50 = 4500px)
-                  const baseSize = '300px'
+                {/* Purchased Items in Shopping Cart with Red Box */}
+                {purchasedItems.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '40%',
+                      left: '53%',
+                      transform: 'translate(-50%, calc(5% - 70px))',
+                      width: '730px',
+                      height: '500px',
+                      zIndex: 9,
+                      pointerEvents: 'none',
+                      overflow: 'visible',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {purchasedItems.map((item, index) => {
+                      // Evenly distribute items across the cart area with slight randomization
+                      // Using item.id as seed for consistent positioning per item
+                      const seed = item.id.charCodeAt(0) + (item.id.length > 1 ? item.id.charCodeAt(1) : 0)
+                      const random1 = (seed * 9301 + 49297) % 233280 / 233280
+                      const random2 = ((seed * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
+                      const random3 = (((seed * 9301 + 49297) * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
+                      
+                      const totalItems = purchasedItems.length
+                      
+                      let baseLeft: number
+                      let baseTop: number
+                      
+                      // For 1-4 items: use more random positioning with good spacing
+                      if (totalItems >= 1 && totalItems <= 4) {
+                        // Define zones to ensure spacing - divide cart into quadrants/sections
+                        const zones = [
+                          // Top-left, top-right, bottom-left, bottom-right
+                          { left: 20, top: 25 },  // Zone 1: top-left
+                          { left: 80, top: 25 },  // Zone 2: top-right
+                          { left: 20, top: 75 },  // Zone 3: bottom-left
+                          { left: 80, top: 75 },  // Zone 4: bottom-right
+                        ]
+                        
+                        // Assign each item to a different zone to ensure spacing
+                        const zoneIndex = index % zones.length
+                        const zone = zones[zoneIndex]
+                        
+                        // Add significant randomness within each zone (±15% variation)
+                        const zoneRandom1 = ((seed * 7 + index * 13) % 233280) / 233280
+                        const zoneRandom2 = (((seed * 7 + index * 13) * 11) % 233280) / 233280
+                        
+                        baseLeft = zone.left + (zoneRandom1 - 0.5) * 30 // ±15% variation
+                        baseTop = zone.top + (zoneRandom2 - 0.5) * 30 // ±15% variation
+                      } else {
+                        // For 5+ items: use grid-based distribution with randomness
+                        const cols = Math.ceil(Math.sqrt(totalItems * 1.2))
+                        const rows = Math.ceil(totalItems / cols)
+                        
+                        const gridCol = index % cols
+                        const gridRow = Math.floor(index / cols)
+                        
+                        // Base positions spread across the cart area (10% to 90% horizontally, 15% to 85% vertically)
+                        const baseGridLeft = cols > 1 ? 10 + (gridCol / (cols - 1)) * 80 : 50
+                        const baseGridTop = rows > 1 ? 15 + (gridRow / (rows - 1)) * 70 : 50
+                        
+                        // Add randomness to the base grid position (up to 25% variation)
+                        baseLeft = baseGridLeft + (random1 - 0.5) * 25
+                        baseTop = baseGridTop + (random2 - 0.5) * 25
+                      }
+                      
+                      // Additional random offset for more variation (larger range for 1-4 items)
+                      const additionalRandom1 = ((seed * 17 + index * 23) % 233280) / 233280
+                      const additionalRandom2 = (((seed * 17 + index * 23) * 19) % 233280) / 233280
+                      const offsetRange = totalItems <= 4 ? 15 : 20 // More offset for fewer items
+                      const leftOffset = (additionalRandom1 - 0.5) * offsetRange
+                      const topOffset = (additionalRandom2 - 0.5) * offsetRange
+                      
+                      // Final positions with all randomization, clamped to stay within bounds
+                      const leftPercent = Math.max(10, Math.min(90, baseLeft + leftOffset))
+                      const topPercent = Math.max(15, Math.min(85, baseTop + topOffset))
+                      
+                      // Slight random rotation (-12 to 12 degrees for more variation)
+                      const rotation = (random3 * 24) - 12
+                      
+                      // Fixed size for all items
+                      const baseSize = '300px'
 
-                  return (
-                    <div
-                      key={item.id}
-                      style={{
-                        position: 'absolute',
-                        left: `${leftPercent}%`,
-                        top: `${topPercent}%`,
-                        width: baseSize,
-                        height: baseSize,
-                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {item.image && (
-                        <img
-                          src={item.image}
-                          alt={item.name}
+                      return (
+                        <div
+                          key={item.id}
                           style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
+                            position: 'absolute',
+                            left: `${leftPercent}%`,
+                            top: `${topPercent}%`,
+                            width: baseSize,
+                            height: baseSize,
+                            transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}
-                        />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                        >
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                                filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
+                              }}
+                            />
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
             
-            {/* Display rendered Story3 image once generated - HIDDEN to keep debugging red square visible */}
-            {false && flattenedImage3 && (
+            {/* Display rendered Story3 image once generated - in same animated container */}
+            {flattenedImage3 && (
               <img
-                src={flattenedImage3 || undefined}
+                src={flattenedImage3}
                 alt="FaceCard Story3 Export"
                 style={{
                   width: `${FRAME_W}px`,
