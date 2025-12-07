@@ -474,111 +474,93 @@ export default function CheckoutPage() {
   useEffect(() => {
     const generateFlattenedImage2 = async () => {
       if (!checkoutRef2.current || isGenerating2) return
-      
-      setIsGenerating2(true)
-      
+
       const node = checkoutRef2.current
-      
+      setIsGenerating2(true)
+
+      // Save original inline styles so we can restore afterward
+      const prevTransform = node.style.transform
+      const prevFilter = node.style.filter
+      const prevOpacity = node.style.opacity
+      const prevTransition = node.style.transition
+
       try {
-        // Off-screen clone - keep DOM at fixed size (1000×1840) with no transforms
-        const clonedNode = node.cloneNode(true) as HTMLElement
-        clonedNode.setAttribute('data-cloned-story', '2')
-        clonedNode.style.position = 'absolute'
-        clonedNode.style.left = '-9999px'
-        clonedNode.style.top = '0'
-        clonedNode.style.opacity = '1'
-        clonedNode.style.visibility = 'visible'
-        clonedNode.style.display = 'block'
-        clonedNode.style.background = '#ffffff'
-        clonedNode.style.transform = 'none'
-        clonedNode.style.width = `${FRAME_W}px`
-        clonedNode.style.height = `${FRAME_H}px`
-        
-        // 🔑 Clear any blur/transition carried over from carousel
-        clonedNode.style.filter = 'none'
-        clonedNode.style.transition = 'none'
-        
-        document.body.appendChild(clonedNode)
-        
-        // Ensure profile image is correct inside clone
-        if (profileImage) {
-          const profileImgs = clonedNode.querySelectorAll('img[alt="Captured face"]')
-          profileImgs.forEach((img) => {
-            const imgEl = img as HTMLImageElement
-            imgEl.src = profileImage
-            if (profileImage.startsWith('data:')) {
-              imgEl.removeAttribute('crossorigin')
-            }
-          })
-        }
-        
-        await waitForImages(clonedNode)
+        // 🔑 Make the node "clean" for export (no blur, no carousel transform)
+        node.style.transform = 'none'
+        node.style.filter = 'none'
+        node.style.opacity = '1'
+        node.style.transition = 'none'
+
+        // Make sure images are loaded
+        await waitForImages(node)
         await new Promise((resolve) => setTimeout(resolve, 200))
-        
+
         // Import dom-to-image-more
         // @ts-ignore - dom-to-image-more doesn't have type definitions
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
-        
-        // Safe scale for crispness (max 2x for iOS)
-        const deviceScale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-        const scale = Math.min(deviceScale, 2) // <=2 to avoid white screens
+
+        const deviceScale =
+          typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+        const scale = Math.min(deviceScale, 2) // max 2x for mobile safety
         const exportWidth = FRAME_W * scale
         const exportHeight = FRAME_H * scale
-        
-        // Render at 2x resolution while DOM stays at 1000×1840
-        const dataUrl = await domtoimage.toPng(clonedNode, {
+
+        const dataUrl = await domtoimage.toPng(node, {
           width: exportWidth,
           height: exportHeight,
           style: {
-            // IMPORTANT: only scale, do NOT override width/height here
+            // only scale for resolution – don't override width/height
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
           },
           cacheBust: true,
           bgcolor: '#ffffff',
         })
-        
-        // Remove the cloned node
-        document.body.removeChild(clonedNode)
-        
+
         setFlattenedImage2(dataUrl)
         contentHashRef2.current = contentHash2
       } catch (err) {
         console.error('Error generating Story2 flattened image:', err)
       } finally {
-        // Clean up any cloned nodes that might still exist
-        const clonedNodes = document.body.querySelectorAll('[data-cloned-story="2"]')
-        clonedNodes.forEach((clone) => {
-          try {
-            document.body.removeChild(clone)
-          } catch {}
-        })
+        // 🔙 Restore original visual state
+        node.style.transform = prevTransform
+        node.style.filter = prevFilter
+        node.style.opacity = prevOpacity
+        node.style.transition = prevTransition
+
         setIsGenerating2(false)
       }
     }
 
-    // Check if content has changed
-    const hasContentChanged = contentHashRef2.current !== contentHash2 && contentHashRef2.current !== ''
+    const hasContentChanged =
+      contentHashRef2.current !== contentHash2 && contentHashRef2.current !== ''
 
-    // 🔑 Only generate when Story2 is active (center card) - prevents capturing blurred side card
+    // 🔑 Only generate when Story2 is the active (center) card
     if (profileImage !== null && valuation.length > 0 && activeStoryIndex === 1) {
-      // If content changed, clear existing image
       if (hasContentChanged && flattenedImage2) {
         setFlattenedImage2(null)
       }
-      
-      // Only generate if we don't have an image or content changed
+
       if (!flattenedImage2) {
-        // Small delay just to let layout settle
         const timer = setTimeout(() => {
           generateFlattenedImage2()
         }, 300)
-        
+
         return () => clearTimeout(timer)
       }
     }
-  }, [profileImage, valuation, isGenerating2, flattenedImage2, FRAME_W, FRAME_H, EXPORT_SCALE, contentHash2, activeStoryIndex])
+  }, [
+    profileImage,
+    valuation,
+    isGenerating2,
+    flattenedImage2,
+    FRAME_W,
+    FRAME_H,
+    EXPORT_SCALE,
+    contentHash2,
+    activeStoryIndex, // 👈 don't forget this
+  ])
 
   // Restore Story3 image from sessionStorage if content hash matches
   useEffect(() => {
