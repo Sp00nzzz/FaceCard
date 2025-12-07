@@ -480,7 +480,7 @@ export default function CheckoutPage() {
       const node = checkoutRef2.current
       
       try {
-        // Clone the node for off-screen rendering to avoid visual glitches
+        // Off-screen clone
         const clonedNode = node.cloneNode(true) as HTMLElement
         clonedNode.setAttribute('data-cloned-story', '2')
         clonedNode.style.position = 'absolute'
@@ -488,47 +488,47 @@ export default function CheckoutPage() {
         clonedNode.style.top = '0'
         clonedNode.style.opacity = '1'
         clonedNode.style.visibility = 'visible'
-        clonedNode.style.display = 'flex'
-        clonedNode.style.zIndex = '-1'
+        clonedNode.style.display = 'block'
+        clonedNode.style.background = '#ffffff'
+        clonedNode.style.transform = 'none'
+        clonedNode.style.width = `${FRAME_W}px`
+        clonedNode.style.height = `${FRAME_H}px`
         document.body.appendChild(clonedNode)
         
-        console.log('Starting Story2 image generation...', {
-          nodeExists: !!node,
-          clonedNodeExists: !!clonedNode,
-          imagesCount: clonedNode.querySelectorAll('img').length
-        })
+        // Ensure profile image is correct inside clone
+        if (profileImage) {
+          const profileImgs = clonedNode.querySelectorAll('img[alt="Captured face"]')
+          profileImgs.forEach((img) => {
+            const imgEl = img as HTMLImageElement
+            imgEl.src = profileImage
+            if (profileImage.startsWith('data:')) {
+              imgEl.removeAttribute('crossorigin')
+            }
+          })
+        }
         
-        // Wait for all images to load in the cloned node
-        const images = clonedNode.querySelectorAll('img')
-        console.log(`Waiting for ${images.length} images to load in Story2...`)
         await waitForImages(clonedNode)
-
-        // Additional delay to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-        console.log('Importing dom-to-image-more for Story2...')
+        await new Promise((resolve) => setTimeout(resolve, 200))
+        
+        // Import dom-to-image-more
         // @ts-ignore - dom-to-image-more doesn't have type definitions
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
         
-        // Clamp scale for mobile (iOS Safari has memory limits)
-        const deviceScale = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
-        const scale = Math.min(deviceScale, 2) // Max 2x to prevent memory issues on mobile
+        // Safe scale for crispness (max 2x for iOS)
+        const deviceScale = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+        const scale = Math.min(deviceScale, 2) // <=2 to avoid white screens
         const exportWidth = FRAME_W * scale
         const exportHeight = FRAME_H * scale
         
-        console.log('Rendering Story2 to PNG...', { scale, exportWidth, exportHeight })
-        // Render at high resolution using the cloned node
         const dataUrl = await domtoimage.toPng(clonedNode, {
           width: exportWidth,
           height: exportHeight,
           style: {
+            // IMPORTANT: only scale, do NOT override width/height here
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            width: `${exportWidth}px`,
-            height: `${exportHeight}px`,
           },
-          quality: 1,
           cacheBust: true,
           bgcolor: '#ffffff',
         })
@@ -536,7 +536,6 @@ export default function CheckoutPage() {
         // Remove the cloned node
         document.body.removeChild(clonedNode)
         
-        console.log('Story2 export completed! Data URL length:', dataUrl.length)
         setFlattenedImage2(dataUrl)
         contentHashRef2.current = contentHash2
       } catch (err) {
@@ -544,12 +543,10 @@ export default function CheckoutPage() {
       } finally {
         // Clean up any cloned nodes that might still exist
         const clonedNodes = document.body.querySelectorAll('[data-cloned-story="2"]')
-        clonedNodes.forEach(clone => {
+        clonedNodes.forEach((clone) => {
           try {
             document.body.removeChild(clone)
-          } catch (e) {
-            // Node might already be removed
-          }
+          } catch {}
         })
         setIsGenerating2(false)
       }
@@ -880,6 +877,15 @@ export default function CheckoutPage() {
             top: calc(clamp(60px, 8vw, 80px) + 30px) !important;
             transform: translateX(-50%) scale(0.9) !important;
           }
+        }
+        
+        /* Improve image rendering quality for scaled elements - use smooth rendering for photos */
+        [data-checkout-content-2] img {
+          image-rendering: -webkit-optimize-contrast;
+          image-rendering: auto;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          transform: translateZ(0); /* Force GPU acceleration for better quality */
         }
       ` }} />
 
@@ -1323,12 +1329,14 @@ export default function CheckoutPage() {
                   style={{
                     position: 'absolute',
                     left: '50%',
-                    top: '20%', // Use percentage-based positioning for mobile compatibility
-                    transform: `translateX(-50%) translateY(-50%) scale(${LICENSE_CARD_SCALE * 2 + 200 / 663.57})`, // 20% bigger + 200px when active
-                    transformOrigin: 'center center',
+                    bottom: '1250px', // Position above receipt with gap (maintained after scaling)
+                    transform: `translate3d(-50%, 0, 0) scale(${LICENSE_CARD_SCALE * 2 + 200 / 663.57})`, // Use translate3d for better GPU acceleration
+                    transformOrigin: 'bottom center',
                     zIndex: 1,
                     opacity: 1,
                     pointerEvents: 'none',
+                    willChange: 'transform', // Hint browser for better rendering
+                    backfaceVisibility: 'hidden', // Prevent rendering artifacts
                   }}
                 >
                   {/* Inner wrapper for visual styles - separated from transforms */}
@@ -1351,6 +1359,7 @@ export default function CheckoutPage() {
                         height: '100%',
                         objectFit: 'cover',
                         zIndex: 0,
+                        imageRendering: 'auto', // Ensure crisp rendering
                       }}
                     />
                     {/* Profile picture slot */}
@@ -1364,42 +1373,21 @@ export default function CheckoutPage() {
                         borderRadius: '5.583px',
                         border: '2.558px solid #4f4040',
                         overflow: 'hidden',
-                        zIndex: 2,
+                        zIndex: 1,
                       }}
                     >
-                      {profileImage ? (
-                        <img
-                          src={profileImage}
-                          alt="Captured face"
-                          crossOrigin={profileImage.startsWith('data:') ? undefined : 'anonymous'}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block',
-                          }}
-                          onError={(e) => {
-                            console.error('Story2: Profile image failed to load:', profileImage)
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            background: 'linear-gradient(135deg, #d0d0d0, #f5f5f5)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '6px',
-                            color: '#555',
-                            textAlign: 'center',
-                            padding: '3px',
-                          }}
-                        >
-                          Your photo
-                        </div>
-                      )}
+                      <img
+                        src={profileImage}
+                        alt="Captured face"
+                        crossOrigin="anonymous"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          imageRendering: 'auto', // Ensure crisp rendering
+                          transform: 'translateZ(0)', // Force GPU acceleration
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
