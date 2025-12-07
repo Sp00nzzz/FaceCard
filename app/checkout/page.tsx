@@ -474,13 +474,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     const generateFlattenedImage2 = async () => {
       if (!checkoutRef2.current || isGenerating2) return
-
+      
       setIsGenerating2(true)
-
+      
       const node = checkoutRef2.current
-
+      
       try {
-        // 1. Clone the node off-screen
+        // Clone the node for off-screen rendering to avoid visual glitches
         const clonedNode = node.cloneNode(true) as HTMLElement
         clonedNode.setAttribute('data-cloned-story', '2')
         clonedNode.style.position = 'absolute'
@@ -488,58 +488,68 @@ export default function CheckoutPage() {
         clonedNode.style.top = '0'
         clonedNode.style.opacity = '1'
         clonedNode.style.visibility = 'visible'
-        clonedNode.style.display = 'block'
-        clonedNode.style.background = '#ffffff'
-        clonedNode.style.transform = 'none'        // important: no 3D/scale transforms
-        clonedNode.style.width = `${FRAME_W}px`
-        clonedNode.style.height = `${FRAME_H}px`
+        clonedNode.style.display = 'flex'
+        clonedNode.style.zIndex = '-1'
         document.body.appendChild(clonedNode)
-
-        // 2. Fix the profile image inside the clone, if present
-        if (profileImage) {
-          const profileImgs = clonedNode.querySelectorAll('img[alt="Captured face"]')
-          profileImgs.forEach((img) => {
-            const imgEl = img as HTMLImageElement
-            imgEl.src = profileImage
-            if (profileImage.startsWith('data:')) {
-              imgEl.removeAttribute('crossorigin')
-            }
-          })
-        }
-
-        console.log('Story2: starting image generation', {
-          imagesCount: clonedNode.querySelectorAll('img').length,
+        
+        console.log('Starting Story2 image generation...', {
+          nodeExists: !!node,
+          clonedNodeExists: !!clonedNode,
+          imagesCount: clonedNode.querySelectorAll('img').length
         })
-
-        // 3. Wait until all <img> tags in the clone have loaded
+        
+        // Wait for all images to load in the cloned node
+        const images = clonedNode.querySelectorAll('img')
+        console.log(`Waiting for ${images.length} images to load in Story2...`)
         await waitForImages(clonedNode)
 
-        // Tiny delay to let layout settle
-        await new Promise((resolve) => setTimeout(resolve, 200))
+        // Additional delay to ensure everything is rendered
+        await new Promise(resolve => setTimeout(resolve, 500))
 
-        // 4. Import dom-to-image-more and render WITHOUT extra width/height/style overrides
-        // @ts-ignore
+        console.log('Importing dom-to-image-more for Story2...')
+        // @ts-ignore - dom-to-image-more doesn't have type definitions
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
-
+        
+        // Clamp scale for mobile (iOS Safari has memory limits)
+        const deviceScale = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+        const scale = Math.min(deviceScale, 2) // Max 2x to prevent memory issues on mobile
+        const exportWidth = FRAME_W * scale
+        const exportHeight = FRAME_H * scale
+        
+        console.log('Rendering Story2 to PNG...', { scale, exportWidth, exportHeight })
+        // Render at high resolution using the cloned node
         const dataUrl = await domtoimage.toPng(clonedNode, {
+          width: exportWidth,
+          height: exportHeight,
+          style: {
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            width: `${exportWidth}px`,
+            height: `${exportHeight}px`,
+          },
+          quality: 1,
           cacheBust: true,
           bgcolor: '#ffffff',
         })
-
-        console.log('Story2: export completed, length:', dataUrl.length)
-
+        
+        // Remove the cloned node
+        document.body.removeChild(clonedNode)
+        
+        console.log('Story2 export completed! Data URL length:', dataUrl.length)
         setFlattenedImage2(dataUrl)
         contentHashRef2.current = contentHash2
       } catch (err) {
         console.error('Error generating Story2 flattened image:', err)
       } finally {
-        // 5. Clean up cloned nodes
+        // Clean up any cloned nodes that might still exist
         const clonedNodes = document.body.querySelectorAll('[data-cloned-story="2"]')
-        clonedNodes.forEach((clone) => {
+        clonedNodes.forEach(clone => {
           try {
             document.body.removeChild(clone)
-          } catch (_) {}
+          } catch (e) {
+            // Node might already be removed
+          }
         })
         setIsGenerating2(false)
       }
