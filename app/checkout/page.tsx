@@ -946,14 +946,12 @@ export default function CheckoutPage() {
             transformOrigin: 'center center',
             justifyContent: 'center',
             alignItems: 'center',
-            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease, filter 0.6s ease',
+            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
             backgroundColor: 'transparent',
             ...(() => {
               const transform = getCardTransform(0)
               return {
                 transform: `translateX(${transform.translateX}vw) translateY(${transform.translateY}px) translateZ(0) rotateY(${transform.rotationY}deg) scale(${transform.scale})`,
-                opacity: transform.opacity,
-                filter: `blur(${transform.blur})`,
                 zIndex: transform.zIndex,
                 pointerEvents: transform.opacity === 1 ? 'auto' : 'none',
               }
@@ -978,6 +976,7 @@ export default function CheckoutPage() {
         >
         {/* HTML content for rendering - used to generate flattened image */}
         {/* Keep HTML canvas in DOM (hidden when image is shown) for image generation */}
+        {/* Inner wrapper for visual styles - opacity/blur applied here, not on outer wrapper */}
         <div
           ref={checkoutRef}
           data-checkout-content
@@ -992,6 +991,14 @@ export default function CheckoutPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            ...(() => {
+              const transform = getCardTransform(0)
+              return {
+                opacity: transform.opacity,
+                filter: `blur(${transform.blur})`,
+                transition: 'opacity 0.6s ease, filter 0.6s ease',
+              }
+            })(),
           }}
         >
           {/* Main Instagram Story Style Card */}
@@ -1239,14 +1246,12 @@ export default function CheckoutPage() {
             transformOrigin: 'center center',
             justifyContent: 'center',
             alignItems: 'center',
-            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease, filter 0.6s ease',
+            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
             backgroundColor: 'transparent',
             ...(() => {
               const transform = getCardTransform(1)
               return {
                 transform: `translateX(${transform.translateX}vw) translateY(${transform.translateY}px) translateZ(0) rotateY(${transform.rotationY}deg) scale(${transform.scale})`,
-                opacity: transform.opacity,
-                filter: `blur(${transform.blur})`,
                 zIndex: transform.zIndex,
                 pointerEvents: transform.opacity === 1 ? 'auto' : 'none',
               }
@@ -1270,6 +1275,7 @@ export default function CheckoutPage() {
             >
             {/* HTML content for Story2 rendering - used to generate flattened image */}
             {/* Keep HTML canvas in DOM (hidden when image is shown) for image generation */}
+            {/* Inner wrapper for visual styles - opacity/blur applied here, not on outer wrapper */}
             <div
               ref={checkoutRef2}
               data-checkout-content-2
@@ -1284,6 +1290,14 @@ export default function CheckoutPage() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                ...(() => {
+                  const transform = getCardTransform(1)
+                  return {
+                    opacity: transform.opacity,
+                    filter: `blur(${transform.blur})`,
+                    transition: 'opacity 0.6s ease, filter 0.6s ease',
+                  }
+                })(),
               }}
             >
               {/* Story2 background image */}
@@ -1303,6 +1317,7 @@ export default function CheckoutPage() {
               />
 
               {/* License Card above receipt on Story2 - centered when Story2 is active */}
+              {/* Separate transform wrapper from visual wrapper to fix Safari compositor issues */}
               {profileImage && (
                 <div
                   style={{
@@ -1311,57 +1326,64 @@ export default function CheckoutPage() {
                     bottom: '1250px', // Position above receipt with gap (maintained after scaling)
                     transform: `translateX(-50%) scale(${LICENSE_CARD_SCALE * 2 + 200 / 663.57})`, // 20% bigger + 200px when active
                     transformOrigin: 'bottom center',
-                    borderRadius: '30.748px',
-                    overflow: 'hidden',
-                    width: '663.57px',
-                    height: '383.3px',
-                    boxShadow: '1.698px 1.698px 8.444px 7.095px rgba(0, 0, 0, 0.17)',
                     zIndex: 1,
                     opacity: 1,
                     pointerEvents: 'none',
                   }}
                 >
-                  <img
-                    alt="Face Card Baddie License"
-                    src={IDcardBG}
-                    crossOrigin="anonymous"
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      zIndex: 0,
-                    }}
-                  />
-                  {/* Profile picture slot */}
+                  {/* Inner wrapper for visual styles - separated from transforms */}
                   <div
                     style={{
-                      position: 'absolute',
-                      top: '65.9px',
-                      left: '34.9px',
-                      width: '185.7px',
-                      height: '245.9px',
-                      borderRadius: '5.583px',
-                      border: '2.558px solid #4f4040',
+                      borderRadius: '30.748px',
                       overflow: 'hidden',
-                      zIndex: 1,
+                      width: '663.57px',
+                      height: '383.3px',
+                      boxShadow: '1.698px 1.698px 8.444px 7.095px rgba(0, 0, 0, 0.17)',
                     }}
                   >
                     <img
-                      src={profileImage}
-                      alt="Captured face"
+                      alt="Face Card Baddie License"
+                      src={IDcardBG}
                       crossOrigin="anonymous"
                       style={{
+                        display: 'block',
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
+                        zIndex: 0,
                       }}
                     />
+                    {/* Profile picture slot */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '65.9px',
+                        left: '34.9px',
+                        width: '185.7px',
+                        height: '245.9px',
+                        borderRadius: '5.583px',
+                        border: '2.558px solid #4f4040',
+                        overflow: 'hidden',
+                        zIndex: 1,
+                      }}
+                    >
+                      <img
+                        src={profileImage}
+                        alt="Captured face"
+                        crossOrigin="anonymous"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Receipt on top of Story2 - centered when Story2 is active */}
+              {/* Separate transform wrapper from visual wrapper to fix Safari compositor issues */}
               {valuation.length > 0 && (
                 <div
                   style={{
@@ -1370,28 +1392,33 @@ export default function CheckoutPage() {
                     bottom: '-40px', // Adjusted down to maintain gap (compensates for ~300px receipt height increase from scaling)
                     transform: 'translateX(-50%) scale(1.7)', // 20% bigger + 200px when active (0.72 + 200/400)
                     transformOrigin: 'bottom center',
-                    width: '450px',
-                    maxWidth: '150vw',
-                    height: '700px',
-                    backgroundColor: '#ffffff',
-                    backgroundImage: 'url(/texture.webp)',
-                    backgroundSize: 'cover',
-                    backgroundRepeat: 'repeat',
-                    backgroundPosition: 'center',
-                    padding: 'clamp(20px, 5vw, 32px)',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04)',
-                    fontFamily: 'Monaco, "Courier New", monospace',
-                    fontSize: 'clamp(12px, 3vw, 14px)',
-                    lineHeight: '1.6',
-                    overflow: 'hidden',
                     zIndex: 1,
                     opacity: 1,
                     pointerEvents: 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
                   }}
                 >
+                  {/* Inner wrapper for visual styles - separated from transforms */}
+                  <div
+                    style={{
+                      width: '450px',
+                      maxWidth: '150vw',
+                      height: '700px',
+                      backgroundColor: '#ffffff',
+                      backgroundImage: 'url(/texture.webp)',
+                      backgroundSize: 'cover',
+                      backgroundRepeat: 'repeat',
+                      backgroundPosition: 'center',
+                      padding: 'clamp(20px, 5vw, 32px)',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04)',
+                      fontFamily: 'Monaco, "Courier New", monospace',
+                      fontSize: 'clamp(12px, 3vw, 14px)',
+                      lineHeight: '1.6',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
                   <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                     <img
                       src="/logo.png"
@@ -1513,6 +1540,7 @@ export default function CheckoutPage() {
                       })}
                     </div>
                   </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1543,14 +1571,12 @@ export default function CheckoutPage() {
             transformOrigin: 'center center',
             justifyContent: 'center',
             alignItems: 'center',
-            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease, filter 0.6s ease',
+            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
             backgroundColor: 'transparent',
             ...(() => {
               const transform = getCardTransform(2)
               return {
                 transform: `translateX(${transform.translateX}vw) translateY(${transform.translateY}px) translateZ(0) rotateY(${transform.rotationY}deg) scale(${transform.scale})`,
-                opacity: transform.opacity,
-                filter: `blur(${transform.blur})`,
                 zIndex: transform.zIndex,
                 pointerEvents: transform.opacity === 1 ? 'auto' : 'none',
               }
@@ -1574,6 +1600,7 @@ export default function CheckoutPage() {
             >
             {/* HTML content for Story3 rendering - used to generate flattened image */}
             {/* Keep HTML canvas in DOM (hidden when image is shown) for image generation */}
+            {/* Inner wrapper for visual styles - opacity/blur applied here, not on outer wrapper */}
             <div
               ref={checkoutRef3}
               data-checkout-content-3
@@ -1588,6 +1615,14 @@ export default function CheckoutPage() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                ...(() => {
+                  const transform = getCardTransform(2)
+                  return {
+                    opacity: transform.opacity,
+                    filter: `blur(${transform.blur})`,
+                    transition: 'opacity 0.6s ease, filter 0.6s ease',
+                  }
+                })(),
               }}
             >
               {/* Main Instagram Story Style Card */}
