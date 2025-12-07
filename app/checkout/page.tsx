@@ -290,6 +290,36 @@ export default function CheckoutPage() {
   const FRAME_H = 1840 // Scaled proportionally to maintain 9:16 aspect ratio (880 * 16/9)
   const EXPORT_SCALE = 1 // 1x = 1000x1840 PNG
 
+  // Safer scale helper, especially for iOS / mobile when lots of items
+  const getSafeScale = () => {
+    if (typeof window === 'undefined') return 1
+
+    const deviceScale = window.devicePixelRatio || 1
+    const isSmallScreen = window.innerWidth <= 768
+    const ua = navigator.userAgent || ''
+    const isIOS = /iPad|iPhone|iPod/.test(ua)
+
+    // Start from clamped device scale
+    let scale = Math.min(deviceScale, 2)
+
+    // On iOS / small screens, be more conservative
+    if (isIOS || isSmallScreen) {
+      scale = Math.min(scale, 1.2)
+    }
+
+    // If a ton of items, clamp harder (reduce memory)
+    if (purchasedItems.length > 12) {
+      scale = Math.min(scale, 1)
+    }
+
+    // Final fallback
+    if (!Number.isFinite(scale) || scale <= 0) {
+      scale = 1
+    }
+
+    return scale
+  }
+
   // Helper function to wait for all images to load (mobile-safe)
   const waitForImages = (root: HTMLElement): Promise<void> => {
     const images = Array.from(root.querySelectorAll('img'))
@@ -366,9 +396,7 @@ export default function CheckoutPage() {
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
         
-        // Clamp scale for mobile (iOS Safari has memory limits)
-        const deviceScale = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
-        const scale = Math.min(deviceScale, 2) // Max 2x to prevent memory issues on mobile
+        const scale = getSafeScale()
         const exportWidth = FRAME_W * scale
         const exportHeight = FRAME_H * scale
         
@@ -475,60 +503,77 @@ export default function CheckoutPage() {
     const generateFlattenedImage2 = async () => {
       if (!checkoutRef2.current || isGenerating2) return
 
-      const node = checkoutRef2.current
       setIsGenerating2(true)
 
-      // Save original inline styles so we can restore afterward
-      const prevTransform = node.style.transform
-      const prevFilter = node.style.filter
-      const prevOpacity = node.style.opacity
-      const prevTransition = node.style.transition
+      const node = checkoutRef2.current
 
       try {
-        // 🔑 Make the node "clean" for export (no blur, no carousel transform)
-        node.style.transform = 'none'
-        node.style.filter = 'none'
-        node.style.opacity = '1'
-        node.style.transition = 'none'
+        // Clone the node off-screen so it's not inside the 3D carousel
+        const clonedNode = node.cloneNode(true) as HTMLElement
+        clonedNode.setAttribute('data-cloned-story', '2')
+        clonedNode.style.position = 'absolute'
+        clonedNode.style.left = '-9999px'
+        clonedNode.style.top = '0'
+        clonedNode.style.opacity = '1'
+        clonedNode.style.visibility = 'visible'
+        clonedNode.style.display = 'flex'
+        clonedNode.style.zIndex = '-1'
+        clonedNode.style.background = '#fff'
+        clonedNode.style.overflow = 'visible'
 
-        // Make sure images are loaded
-        await waitForImages(node)
-        await new Promise((resolve) => setTimeout(resolve, 200))
+        // Kill any blur / transition that came from carousel styles
+        clonedNode.style.filter = 'none'
+        clonedNode.style.transition = 'none'
 
-        // Import dom-to-image-more
-        // @ts-ignore - dom-to-image-more doesn't have type definitions
+        // Also clear styles on the inner wrapper
+        const contentWrapper = clonedNode.querySelector(
+          '[data-checkout-content-2]'
+        ) as HTMLElement | null
+        if (contentWrapper) {
+          contentWrapper.style.filter = 'none'
+          contentWrapper.style.transition = 'none'
+          contentWrapper.style.overflow = 'visible'
+        }
+
+        document.body.appendChild(clonedNode)
+
+        await waitForImages(clonedNode)
+        await new Promise((resolve) => setTimeout(resolve, 300))
+
+        // @ts-ignore
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
 
-        const deviceScale =
-          typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-        const scale = Math.min(deviceScale, 2) // max 2x for mobile safety
+        const scale = getSafeScale()
         const exportWidth = FRAME_W * scale
         const exportHeight = FRAME_H * scale
 
-        const dataUrl = await domtoimage.toPng(node, {
+        const dataUrl = await domtoimage.toPng(clonedNode, {
           width: exportWidth,
           height: exportHeight,
           style: {
-            // only scale for resolution – don't override width/height
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
+            width: `${exportWidth}px`,
+            height: `${exportHeight}px`,
           },
           cacheBust: true,
           bgcolor: '#ffffff',
         })
+
+        document.body.removeChild(clonedNode)
 
         setFlattenedImage2(dataUrl)
         contentHashRef2.current = contentHash2
       } catch (err) {
         console.error('Error generating Story2 flattened image:', err)
       } finally {
-        // 🔙 Restore original visual state
-        node.style.transform = prevTransform
-        node.style.filter = prevFilter
-        node.style.opacity = prevOpacity
-        node.style.transition = prevTransition
-
+        const clones = document.body.querySelectorAll('[data-cloned-story="2"]')
+        clones.forEach((clone) => {
+          try {
+            document.body.removeChild(clone)
+          } catch {}
+        })
         setIsGenerating2(false)
       }
     }
@@ -645,9 +690,7 @@ export default function CheckoutPage() {
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
 
-        const deviceScale =
-          typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
-        const scale = Math.min(deviceScale, 2)
+        const scale = getSafeScale()
         const exportWidth = FRAME_W * scale
         const exportHeight = FRAME_H * scale
 
