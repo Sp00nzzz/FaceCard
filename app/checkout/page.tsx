@@ -1323,9 +1323,9 @@ export default function CheckoutPage() {
                   style={{
                     position: 'absolute',
                     left: '50%',
-                    bottom: '1250px', // Position above receipt with gap (maintained after scaling)
-                    transform: `translateX(-50%) scale(${LICENSE_CARD_SCALE * 2 + 200 / 663.57})`, // 20% bigger + 200px when active
-                    transformOrigin: 'bottom center',
+                    top: '20%', // Use percentage-based positioning for mobile compatibility
+                    transform: `translateX(-50%) translateY(-50%) scale(${LICENSE_CARD_SCALE * 2 + 200 / 663.57})`, // 20% bigger + 200px when active
+                    transformOrigin: 'center center',
                     zIndex: 1,
                     opacity: 1,
                     pointerEvents: 'none',
@@ -1364,19 +1364,42 @@ export default function CheckoutPage() {
                         borderRadius: '5.583px',
                         border: '2.558px solid #4f4040',
                         overflow: 'hidden',
-                        zIndex: 1,
+                        zIndex: 2,
                       }}
                     >
-                      <img
-                        src={profileImage}
-                        alt="Captured face"
-                        crossOrigin="anonymous"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
+                      {profileImage ? (
+                        <img
+                          src={profileImage}
+                          alt="Captured face"
+                          crossOrigin={profileImage.startsWith('data:') ? undefined : 'anonymous'}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block',
+                          }}
+                          onError={(e) => {
+                            console.error('Story2: Profile image failed to load:', profileImage)
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(135deg, #d0d0d0, #f5f5f5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '6px',
+                            color: '#555',
+                            textAlign: 'center',
+                            padding: '3px',
+                          }}
+                        >
+                          Your photo
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
