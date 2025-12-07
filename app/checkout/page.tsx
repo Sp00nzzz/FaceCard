@@ -589,11 +589,11 @@ export default function CheckoutPage() {
   useEffect(() => {
     const generateFlattenedImage3 = async () => {
       if (!checkoutRef3.current || isGenerating3) return
-      
+
       setIsGenerating3(true)
-      
+
       const node = checkoutRef3.current
-      
+
       try {
         // Clone the node for off-screen rendering to avoid visual glitches
         const clonedNode = node.cloneNode(true) as HTMLElement
@@ -605,56 +605,53 @@ export default function CheckoutPage() {
         clonedNode.style.visibility = 'visible'
         clonedNode.style.display = 'flex'
         clonedNode.style.zIndex = '-1'
-        // Ensure cloned node has white background for rendering (not transparent)
         clonedNode.style.background = '#fff'
-        // Ensure overflow is visible in cloned node to capture red box
         clonedNode.style.overflow = 'visible'
-        
-        // Find and update all containers to ensure red box is visible
-        const mainContainer = clonedNode.querySelector('[data-checkout-content-3]') as HTMLElement
-        if (mainContainer) {
-          mainContainer.style.overflow = 'visible'
+
+        // 🔑 Kill any blur/transition that came from carousel styles
+        clonedNode.style.filter = 'none'
+        clonedNode.style.transition = 'none'
+
+        // Make sure the inner content wrapper also has no blur
+        const contentWrapper = clonedNode.querySelector('[data-checkout-content-3]') as HTMLElement | null
+        if (contentWrapper) {
+          contentWrapper.style.filter = 'none'
+          contentWrapper.style.transition = 'none'
+          contentWrapper.style.overflow = 'visible'
         }
-        
-        // Find all divs and ensure those with absolute positioning have visible overflow
+
+        // Ensure absolutely-positioned children don't clip
         const allDivs = clonedNode.querySelectorAll('div') as NodeListOf<HTMLElement>
         allDivs.forEach((div) => {
           const style = window.getComputedStyle(div)
           if (style.position === 'absolute') {
             div.style.overflow = 'visible'
           }
-
         })
-        
+
         document.body.appendChild(clonedNode)
-        
+
         console.log('Starting Story3 image generation...', {
           nodeExists: !!node,
           clonedNodeExists: !!clonedNode,
-          imagesCount: clonedNode.querySelectorAll('img').length
+          imagesCount: clonedNode.querySelectorAll('img').length,
         })
-        
-        // Wait for all images to load in the cloned node
-        const images = clonedNode.querySelectorAll('img')
-        console.log(`Waiting for ${images.length} images to load in Story3...`)
-        await waitForImages(clonedNode)
 
-        // Additional delay to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await waitForImages(clonedNode)
+        await new Promise((resolve) => setTimeout(resolve, 500))
 
         console.log('Importing dom-to-image-more for Story3...')
         // @ts-ignore - dom-to-image-more doesn't have type definitions
         const domtoimageModule = await import('dom-to-image-more')
         const domtoimage = domtoimageModule.default || domtoimageModule
-        
-        // Clamp scale for mobile (iOS Safari has memory limits)
-        const deviceScale = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
-        const scale = Math.min(deviceScale, 2) // Max 2x to prevent memory issues on mobile
+
+        const deviceScale =
+          typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+        const scale = Math.min(deviceScale, 2)
         const exportWidth = FRAME_W * scale
         const exportHeight = FRAME_H * scale
-        
+
         console.log('Rendering Story3 to PNG...', { scale, exportWidth, exportHeight })
-        // Render at high resolution using the cloned node
         const dataUrl = await domtoimage.toPng(clonedNode, {
           width: exportWidth,
           height: exportHeight,
@@ -668,15 +665,13 @@ export default function CheckoutPage() {
           cacheBust: true,
           bgcolor: '#ffffff',
         })
-        
-        // Remove the cloned node
+
         document.body.removeChild(clonedNode)
-        
+
         console.log('Story3 export completed! Data URL length:', dataUrl.length)
         setFlattenedImage3(dataUrl)
         contentHashRef3.current = contentHash3
-        
-        // Store in sessionStorage for persistence across navigation
+
         if (typeof window !== 'undefined') {
           try {
             window.sessionStorage.setItem('facecard_story3_image', dataUrl)
@@ -689,24 +684,27 @@ export default function CheckoutPage() {
       } catch (err) {
         console.error('Error generating Story3 flattened image:', err)
       } finally {
-        // Clean up any cloned nodes that might still exist
         const clonedNodes = document.body.querySelectorAll('[data-cloned-story="3"]')
-        clonedNodes.forEach(clone => {
+        clonedNodes.forEach((clone) => {
           try {
             document.body.removeChild(clone)
-          } catch (e) {
-            // Node might already be removed
-          }
+          } catch {}
         })
         setIsGenerating3(false)
       }
     }
 
     // Check if content has changed
-    const hasContentChanged = contentHashRef3.current !== contentHash3 && contentHashRef3.current !== ''
+    const hasContentChanged =
+      contentHashRef3.current !== contentHash3 && contentHashRef3.current !== ''
 
-    // Generate image when profile image and quantities are loaded
-    if (profileImage !== null && Object.keys(quantities).length > 0 && purchasedItems.length > 0) {
+    // 🔑 Only generate when Story3 is active (center card)
+    if (
+      profileImage !== null &&
+      Object.keys(quantities).length > 0 &&
+      purchasedItems.length > 0 &&
+      activeStoryIndex === 2
+    ) {
       console.log('Story3 render check:', {
         hasFlattenedImage: !!flattenedImage3,
         hasContentChanged,
@@ -714,10 +712,10 @@ export default function CheckoutPage() {
         storedHash: contentHashRef3.current,
         purchasedItemsCount: purchasedItems.length,
         isGenerating: isGenerating3,
-        hasRef: !!checkoutRef3.current
+        hasRef: !!checkoutRef3.current,
+        activeStoryIndex,
       })
-      
-      // If content changed, clear existing image and sessionStorage
+
       if (hasContentChanged && flattenedImage3) {
         console.log('Story3: Content changed, clearing image and sessionStorage')
         setFlattenedImage3(null)
@@ -730,36 +728,39 @@ export default function CheckoutPage() {
           }
         }
       }
-      
-      // Only generate if we don't have an image and we're not already generating
+
       if (!flattenedImage3 && !isGenerating3) {
         console.log('Story3: Starting generation (no existing image, not generating)')
-        // Longer delay to ensure DOM is fully rendered and images are loaded
         const timer = setTimeout(() => {
           console.log('Story3: Timer fired, calling generateFlattenedImage3')
           generateFlattenedImage3()
-        }, 2000) // Delay after Story1 and Story2
-        
+        }, 500) // small delay is enough now
+
         return () => {
           console.log('Story3: Cleaning up timer')
           clearTimeout(timer)
-        }
-      } else {
-        if (flattenedImage3) {
-          console.log('Story3: Using existing flattened image')
-        }
-        if (isGenerating3) {
-          console.log('Story3: Already generating, skipping')
         }
       }
     } else {
       console.log('Story3: Conditions not met for generation', {
         hasProfileImage: profileImage !== null,
         hasQuantities: Object.keys(quantities).length > 0,
-        purchasedItemsCount: purchasedItems.length
+        purchasedItemsCount: purchasedItems.length,
+        activeStoryIndex,
       })
     }
-  }, [profileImage, quantities, isGenerating3, flattenedImage3, purchasedItems.length, FRAME_W, FRAME_H, EXPORT_SCALE, contentHash3])
+  }, [
+    profileImage,
+    quantities,
+    purchasedItems.length,
+    isGenerating3,
+    flattenedImage3,
+    FRAME_W,
+    FRAME_H,
+    EXPORT_SCALE,
+    contentHash3,
+    activeStoryIndex, // 👈 important
+  ])
 
   const downloadAsImage = () => {
     // Get the current active story's image
