@@ -480,7 +480,7 @@ export default function CheckoutPage() {
       const node = checkoutRef2.current
       
       try {
-        // Off-screen clone
+        // Off-screen clone - keep DOM at fixed size (1000×1840) with no transforms
         const clonedNode = node.cloneNode(true) as HTMLElement
         clonedNode.setAttribute('data-cloned-story', '2')
         clonedNode.style.position = 'absolute'
@@ -493,6 +493,11 @@ export default function CheckoutPage() {
         clonedNode.style.transform = 'none'
         clonedNode.style.width = `${FRAME_W}px`
         clonedNode.style.height = `${FRAME_H}px`
+        
+        // 🔑 Clear any blur/transition carried over from carousel
+        clonedNode.style.filter = 'none'
+        clonedNode.style.transition = 'none'
+        
         document.body.appendChild(clonedNode)
         
         // Ensure profile image is correct inside clone
@@ -521,6 +526,7 @@ export default function CheckoutPage() {
         const exportWidth = FRAME_W * scale
         const exportHeight = FRAME_H * scale
         
+        // Render at 2x resolution while DOM stays at 1000×1840
         const dataUrl = await domtoimage.toPng(clonedNode, {
           width: exportWidth,
           height: exportHeight,
@@ -555,8 +561,8 @@ export default function CheckoutPage() {
     // Check if content has changed
     const hasContentChanged = contentHashRef2.current !== contentHash2 && contentHashRef2.current !== ''
 
-    // Generate image when profile image and valuation are loaded
-    if (profileImage !== null && valuation.length > 0) {
+    // 🔑 Only generate when Story2 is active (center card) - prevents capturing blurred side card
+    if (profileImage !== null && valuation.length > 0 && activeStoryIndex === 1) {
       // If content changed, clear existing image
       if (hasContentChanged && flattenedImage2) {
         setFlattenedImage2(null)
@@ -564,15 +570,15 @@ export default function CheckoutPage() {
       
       // Only generate if we don't have an image or content changed
       if (!flattenedImage2) {
-        // Longer delay to ensure DOM is fully rendered and images are loaded
+        // Small delay just to let layout settle
         const timer = setTimeout(() => {
           generateFlattenedImage2()
-        }, 1500) // Slightly longer delay to ensure Story1 generation doesn't interfere
+        }, 300)
         
         return () => clearTimeout(timer)
       }
     }
-  }, [profileImage, valuation, isGenerating2, flattenedImage2, FRAME_W, FRAME_H, EXPORT_SCALE, contentHash2])
+  }, [profileImage, valuation, isGenerating2, flattenedImage2, FRAME_W, FRAME_H, EXPORT_SCALE, contentHash2, activeStoryIndex])
 
   // Restore Story3 image from sessionStorage if content hash matches
   useEffect(() => {
