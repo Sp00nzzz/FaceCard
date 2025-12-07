@@ -295,11 +295,47 @@ export default function CheckoutPage() {
     const images = Array.from(root.querySelectorAll('img'))
     return Promise.all(
       images.map((img) => {
+        // For data URLs, they should load immediately, but we still need to check
+        const isDataUrl = img.src.startsWith('data:')
+        
         // If image is already loaded, resolve immediately
         if (img.complete && img.naturalWidth > 0) {
           return Promise.resolve()
         }
-        // Otherwise, wait for load or error
+        
+        // For data URLs, force a reload by setting src again to ensure it's loaded
+        if (isDataUrl) {
+          const originalSrc = img.src
+          // Force reload by temporarily clearing and resetting src
+          img.src = ''
+          img.src = originalSrc
+          // Data URLs should load synchronously, but wait a tick to be sure
+          return new Promise<void>((resolve) => {
+            // Use requestAnimationFrame to ensure the image is rendered
+            requestAnimationFrame(() => {
+              if (img.complete && img.naturalWidth > 0) {
+                resolve()
+              } else {
+                // Fallback: wait for load event
+                const timeout = setTimeout(() => {
+                  console.warn('Data URL image load timeout:', img.src.substring(0, 50) + '...')
+                  resolve()
+                }, 2000)
+                img.onload = () => {
+                  clearTimeout(timeout)
+                  resolve()
+                }
+                img.onerror = () => {
+                  console.error('Data URL image load error:', img.src.substring(0, 50) + '...')
+                  clearTimeout(timeout)
+                  resolve()
+                }
+              }
+            })
+          })
+        }
+        
+        // For regular URLs, wait for load or error
         return new Promise<void>((resolve) => {
           const timeout = setTimeout(() => {
             console.warn('Image load timeout:', img.src)
@@ -316,7 +352,29 @@ export default function CheckoutPage() {
           }
         })
       })
-    ).then(() => undefined)
+    ).then(() => {
+      // Final check: verify all images are actually loaded
+      const allImages = Array.from(root.querySelectorAll('img'))
+      const loadedImages = allImages.filter(img => img.complete && img.naturalWidth > 0)
+      const dataUrlImages = allImages.filter(img => img.src.startsWith('data:'))
+      
+      console.log(`Image loading complete: ${loadedImages.length}/${allImages.length} loaded`, {
+        dataUrlCount: dataUrlImages.length,
+        regularUrlCount: allImages.length - dataUrlImages.length
+      })
+      
+      // Log any problematic images
+      allImages.forEach((img, index) => {
+        if (!img.complete || img.naturalWidth === 0) {
+          console.warn(`Image ${index} not loaded:`, {
+            src: img.src.substring(0, 100),
+            complete: img.complete,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight
+          })
+        }
+      })
+    })
   }
   
   // Calculate scale for license card to match receipt width
@@ -346,6 +404,26 @@ export default function CheckoutPage() {
         clonedNode.style.display = 'flex'
         clonedNode.style.zIndex = '-1'
         document.body.appendChild(clonedNode)
+        
+        // Explicitly ensure profile image src is preserved after cloning
+        // Sometimes cloneNode doesn't preserve data URLs correctly
+        if (profileImage) {
+          const profileImgs = clonedNode.querySelectorAll('img[alt="Captured face"]')
+          profileImgs.forEach((img) => {
+            const imgEl = img as HTMLImageElement
+            if (imgEl.src !== profileImage) {
+              console.log('Fixing profile image src in Story1 clone:', {
+                oldSrc: imgEl.src.substring(0, 50),
+                newSrc: profileImage.substring(0, 50)
+              })
+              imgEl.src = profileImage
+              // Remove crossOrigin for data URLs
+              if (profileImage.startsWith('data:')) {
+                imgEl.removeAttribute('crossorigin')
+              }
+            }
+          })
+        }
         
         console.log('Starting Story1 image generation...', {
           nodeExists: !!node,
@@ -492,6 +570,26 @@ export default function CheckoutPage() {
         clonedNode.style.zIndex = '-1'
         document.body.appendChild(clonedNode)
         
+        // Explicitly ensure profile image src is preserved after cloning
+        // Sometimes cloneNode doesn't preserve data URLs correctly
+        if (profileImage) {
+          const profileImgs = clonedNode.querySelectorAll('img[alt="Captured face"]')
+          profileImgs.forEach((img) => {
+            const imgEl = img as HTMLImageElement
+            if (imgEl.src !== profileImage) {
+              console.log('Fixing profile image src in clone:', {
+                oldSrc: imgEl.src.substring(0, 50),
+                newSrc: profileImage.substring(0, 50)
+              })
+              imgEl.src = profileImage
+              // Remove crossOrigin for data URLs
+              if (profileImage.startsWith('data:')) {
+                imgEl.removeAttribute('crossorigin')
+              }
+            }
+          })
+        }
+        
         console.log('Starting Story2 image generation...', {
           nodeExists: !!node,
           clonedNodeExists: !!clonedNode,
@@ -501,10 +599,37 @@ export default function CheckoutPage() {
         // Wait for all images to load in the cloned node
         const images = clonedNode.querySelectorAll('img')
         console.log(`Waiting for ${images.length} images to load in Story2...`)
+        
+        // Specifically check for profile image in Story2
+        const profileImages = clonedNode.querySelectorAll('img[alt="Captured face"]')
+        console.log(`Found ${profileImages.length} profile image(s) in Story2 clone`)
+        profileImages.forEach((img, idx) => {
+          console.log(`Profile image ${idx}:`, {
+            src: img.getAttribute('src')?.substring(0, 50) + '...',
+            isDataUrl: img.getAttribute('src')?.startsWith('data:'),
+            complete: (img as HTMLImageElement).complete,
+            naturalWidth: (img as HTMLImageElement).naturalWidth
+          })
+        })
+        
         await waitForImages(clonedNode)
 
-        // Additional delay to ensure everything is rendered
+        // Additional delay to ensure everything is rendered, especially for data URLs
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Final verification: check if profile image is still there
+        const profileImagesAfter = clonedNode.querySelectorAll('img[alt="Captured face"]')
+        profileImagesAfter.forEach((img, idx) => {
+          const imgEl = img as HTMLImageElement
+          console.log(`Profile image ${idx} after wait:`, {
+            src: imgEl.src.substring(0, 50) + '...',
+            complete: imgEl.complete,
+            naturalWidth: imgEl.naturalWidth,
+            naturalHeight: imgEl.naturalHeight,
+            width: imgEl.width,
+            height: imgEl.height
+          })
+        })
 
         console.log('Importing dom-to-image-more for Story2...')
         // @ts-ignore - dom-to-image-more doesn't have type definitions
@@ -624,6 +749,26 @@ export default function CheckoutPage() {
         clonedNode.style.background = '#fff'
         // Ensure overflow is visible in cloned node to capture red box
         clonedNode.style.overflow = 'visible'
+        
+        // Explicitly ensure profile image src is preserved after cloning
+        // Sometimes cloneNode doesn't preserve data URLs correctly
+        if (profileImage) {
+          const profileImgs = clonedNode.querySelectorAll('img[alt="Captured face"]')
+          profileImgs.forEach((img) => {
+            const imgEl = img as HTMLImageElement
+            if (imgEl.src !== profileImage) {
+              console.log('Fixing profile image src in Story3 clone:', {
+                oldSrc: imgEl.src.substring(0, 50),
+                newSrc: profileImage.substring(0, 50)
+              })
+              imgEl.src = profileImage
+              // Remove crossOrigin for data URLs
+              if (profileImage.startsWith('data:')) {
+                imgEl.removeAttribute('crossorigin')
+              }
+            }
+          })
+        }
         
         // Find and update all containers to ensure red box is visible
         const mainContainer = clonedNode.querySelector('[data-checkout-content-3]') as HTMLElement
@@ -1073,7 +1218,7 @@ export default function CheckoutPage() {
                   <img
                     src={profileImage}
                     alt="Captured face"
-                    crossOrigin="anonymous"
+                    crossOrigin={profileImage?.startsWith('data:') ? undefined : 'anonymous'}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -1370,7 +1515,7 @@ export default function CheckoutPage() {
                       <img
                         src={profileImage}
                         alt="Captured face"
-                        crossOrigin="anonymous"
+                        crossOrigin={profileImage?.startsWith('data:') ? undefined : 'anonymous'}
                         style={{
                           width: '100%',
                           height: '100%',
