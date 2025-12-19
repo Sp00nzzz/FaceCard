@@ -513,6 +513,39 @@ Example:
       gap: 'clamp(25px, 5vw, 40px)',
       flexWrap: 'wrap',
     }}>
+      {/* Test button to skip to checkout */}
+      <button
+        onClick={() => router.push('/checkout')}
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          padding: '12px 20px',
+          fontSize: '14px',
+          fontWeight: '600',
+          backgroundColor: '#34C759',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          boxShadow: '0 2px 8px rgba(52, 199, 89, 0.3)',
+          zIndex: 9999,
+          transition: 'all 0.2s ease',
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.backgroundColor = '#30B350'
+          e.currentTarget.style.transform = 'translateY(-2px)'
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(52, 199, 89, 0.4)'
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.backgroundColor = '#34C759'
+          e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.boxShadow = '0 2px 8px rgba(52, 199, 89, 0.3)'
+        }}
+      >
+        Skip to Checkout (Test)
+      </button>
+
       {/* Marquee Animation Styles */}
       <style dangerouslySetInnerHTML={{
         __html: `

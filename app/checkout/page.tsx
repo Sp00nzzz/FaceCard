@@ -72,6 +72,8 @@ export default function CheckoutPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGenerating2, setIsGenerating2] = useState(false)
   const [isGenerating3, setIsGenerating3] = useState(false)
+  const [allImagesReady, setAllImagesReady] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
   const contentHashRef = useRef<string>('')
   const contentHashRef2 = useRef<string>('')
   const contentHashRef3 = useRef<string>('')
@@ -130,16 +132,32 @@ export default function CheckoutPage() {
 
   const handleNext = () => {
     if (isTransitioning) return
+    console.log('[Carousel] handleNext - Starting transition')
     setIsTransitioning(true)
-    setActiveStoryIndex((prev) => (prev === 2 ? 0 : prev + 1))
-    setTimeout(() => setIsTransitioning(false), 600)
+    setActiveStoryIndex((prev) => {
+      const next = prev === 2 ? 0 : prev + 1
+      console.log('[Carousel] Moving from', prev, 'to', next)
+      return next
+    })
+    setTimeout(() => {
+      console.log('[Carousel] Transition complete')
+      setIsTransitioning(false)
+    }, 600)
   }
 
   const handlePrevious = () => {
     if (isTransitioning) return
+    console.log('[Carousel] handlePrevious - Starting transition')
     setIsTransitioning(true)
-    setActiveStoryIndex((prev) => (prev === 0 ? 2 : prev - 1))
-    setTimeout(() => setIsTransitioning(false), 600)
+    setActiveStoryIndex((prev) => {
+      const next = prev === 0 ? 2 : prev - 1
+      console.log('[Carousel] Moving from', prev, 'to', next)
+      return next
+    })
+    setTimeout(() => {
+      console.log('[Carousel] Transition complete')
+      setIsTransitioning(false)
+    }, 600)
   }
 
   // Calculate card transform based on position relative to active index
@@ -198,6 +216,14 @@ export default function CheckoutPage() {
         const storedValuation = window.sessionStorage.getItem('facecard_valuation')
         if (storedValuation) {
           setValuation(JSON.parse(storedValuation))
+        } else {
+          // TESTING: Add placeholder valuation data
+          setValuation([
+            { name: 'Natural Beauty', price: 999999.99 },
+            { name: 'Confidence', price: 500000.00 },
+            { name: 'Style Points', price: 250000.00 },
+            { name: 'Face Card', price: 1000000.00 },
+          ])
         }
         const now = new Date()
         setCurrentDate(now.toLocaleDateString())
@@ -214,20 +240,32 @@ export default function CheckoutPage() {
         const stored = window.sessionStorage.getItem('facecard_captured_image')
         if (stored) {
           setProfileImage(stored)
+        } else {
+          // TESTING: Use placeholder image if no camera image
+          setProfileImage('/placeholder-profile.png')
         }
-        
+
         const storedCart = window.sessionStorage.getItem('facecard_cart')
         if (storedCart) {
           const parsedCart = JSON.parse(storedCart) as Record<string, number>
           setQuantities(parsedCart)
         } else {
-          // If no cart data, redirect back to shop
-          router.push('/shop')
+          // TESTING: Commented out redirect to allow testing without cart
+          // router.push('/shop')
+
+          // Add some test items for demonstration
+          setQuantities({
+            '1': 1,
+            '2': 1,
+            '8': 1,
+            '9': 1,
+          })
         }
       }
     } catch (err) {
       console.warn('Unable to read data from sessionStorage:', err)
-      router.push('/shop')
+      // TESTING: Commented out redirect
+      // router.push('/shop')
     }
   }, [router])
 
@@ -348,6 +386,19 @@ export default function CheckoutPage() {
       })
     ).then(() => undefined)
   }
+
+  // Helper to wait for browser to finish all paint/layout operations
+  const waitForBrowserPaint = (): Promise<void> => {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(() => resolve(), 100)
+          })
+        })
+      })
+    })
+  }
   
   // Calculate scale for license card to match receipt width
   // Receipt width: clamp(280px, 90vw, 400px) * 0.6 scale = max 240px rendered
@@ -363,8 +414,11 @@ export default function CheckoutPage() {
       setIsGenerating(true)
       
       const node = checkoutRef.current
-      
+
       try {
+        // Force layout recalculation to ensure all elements are fully rendered
+        node.getBoundingClientRect()
+
         // Clone the node for off-screen rendering to avoid visual glitches
         const clonedNode = node.cloneNode(true) as HTMLElement
         clonedNode.setAttribute('data-cloned-story', '1')
@@ -388,8 +442,11 @@ export default function CheckoutPage() {
         console.log(`Waiting for ${images.length} images to load...`)
         await waitForImages(clonedNode)
 
-        // Additional delay to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // Wait for browser to complete all paint/layout operations
+        await waitForBrowserPaint()
+
+        // Extra delay for mobile to ensure full paint/render
+        await new Promise(resolve => setTimeout(resolve, 800))
 
         console.log('Importing dom-to-image-more...')
         // @ts-ignore - dom-to-image-more doesn't have type definitions
@@ -411,7 +468,7 @@ export default function CheckoutPage() {
             width: `${exportWidth}px`,
             height: `${exportHeight}px`,
           },
-          quality: 1,
+          quality: 0.92,
           cacheBust: true,
           bgcolor: '#ffffff',
         })
@@ -422,6 +479,7 @@ export default function CheckoutPage() {
         console.log('Export completed! Data URL length:', dataUrl.length)
         setFlattenedImage(dataUrl)
         contentHashRef.current = contentHash1
+        setLoadingProgress(33) // Story 1 complete
         
         // Store in sessionStorage for persistence across navigation
         if (typeof window !== 'undefined') {
@@ -430,7 +488,20 @@ export default function CheckoutPage() {
             window.sessionStorage.setItem('facecard_story1_hash', contentHash1)
             console.log('Story1: Stored image in sessionStorage')
           } catch (err) {
-            console.warn('Unable to store Story1 image in sessionStorage:', err)
+            console.error('Story1: sessionStorage quota exceeded or error:', err)
+            // Clear old story images and try again
+            try {
+              console.log('Story1: Attempting to clear old images and retry...')
+              window.sessionStorage.removeItem('facecard_story2_image')
+              window.sessionStorage.removeItem('facecard_story2_hash')
+              window.sessionStorage.removeItem('facecard_story3_image')
+              window.sessionStorage.removeItem('facecard_story3_hash')
+              window.sessionStorage.setItem('facecard_story1_image', dataUrl)
+              window.sessionStorage.setItem('facecard_story1_hash', contentHash1)
+              console.log('Story1: Successfully stored after clearing old images')
+            } catch (retryErr) {
+              console.error('Story1: Still unable to store after cleanup:', retryErr)
+            }
           }
         }
       } catch (err) {
@@ -439,13 +510,28 @@ export default function CheckoutPage() {
       } finally {
         // Clean up any cloned nodes that might still exist
         const clonedNodes = document.body.querySelectorAll('[data-cloned-story="1"]')
+        console.log(`Story1: Cleaning up ${clonedNodes.length} cloned nodes`)
         clonedNodes.forEach(clone => {
           try {
             document.body.removeChild(clone)
           } catch (e) {
-            // Node might already be removed
+            console.warn('Story1: Failed to remove cloned node:', e)
           }
         })
+
+        // Also clean up any orphaned clones from other stories
+        const allClones = document.body.querySelectorAll('[data-cloned-story]')
+        if (allClones.length > 0) {
+          console.warn(`Story1: Found ${allClones.length} orphaned clones, cleaning up...`)
+          allClones.forEach(clone => {
+            try {
+              document.body.removeChild(clone)
+            } catch (e) {
+              // Ignore
+            }
+          })
+        }
+
         setIsGenerating(false)
       }
     }
@@ -508,6 +594,9 @@ export default function CheckoutPage() {
       const node = checkoutRef2.current
 
       try {
+        // Force layout recalculation to ensure all elements are fully rendered
+        node.getBoundingClientRect()
+
         // Clone the node off-screen so it's not inside the 3D carousel
         const clonedNode = node.cloneNode(true) as HTMLElement
         clonedNode.setAttribute('data-cloned-story', '2')
@@ -538,7 +627,12 @@ export default function CheckoutPage() {
         document.body.appendChild(clonedNode)
 
         await waitForImages(clonedNode)
-        await new Promise((resolve) => setTimeout(resolve, 300))
+
+        // Wait for browser to complete all paint/layout operations
+        await waitForBrowserPaint()
+
+        // Extra delay for mobile to ensure full paint/render
+        await new Promise((resolve) => setTimeout(resolve, 800))
 
         // @ts-ignore
         const domtoimageModule = await import('dom-to-image-more')
@@ -563,17 +657,60 @@ export default function CheckoutPage() {
 
         document.body.removeChild(clonedNode)
 
+        console.log('Story2: Export completed! Data URL length:', dataUrl.length)
         setFlattenedImage2(dataUrl)
         contentHashRef2.current = contentHash2
+        setLoadingProgress(66) // Story 2 complete
+
+        // Store in sessionStorage for persistence
+        if (typeof window !== 'undefined') {
+          try {
+            window.sessionStorage.setItem('facecard_story2_image', dataUrl)
+            window.sessionStorage.setItem('facecard_story2_hash', contentHash2)
+            console.log('Story2: Stored image in sessionStorage')
+          } catch (err) {
+            console.error('Story2: sessionStorage quota exceeded or error:', err)
+            // Clear old story images and try again
+            try {
+              console.log('Story2: Attempting to clear old images and retry...')
+              window.sessionStorage.removeItem('facecard_story1_image')
+              window.sessionStorage.removeItem('facecard_story1_hash')
+              window.sessionStorage.removeItem('facecard_story3_image')
+              window.sessionStorage.removeItem('facecard_story3_hash')
+              window.sessionStorage.setItem('facecard_story2_image', dataUrl)
+              window.sessionStorage.setItem('facecard_story2_hash', contentHash2)
+              console.log('Story2: Successfully stored after clearing old images')
+            } catch (retryErr) {
+              console.error('Story2: Still unable to store after cleanup:', retryErr)
+            }
+          }
+        }
       } catch (err) {
         console.error('Error generating Story2 flattened image:', err)
       } finally {
         const clones = document.body.querySelectorAll('[data-cloned-story="2"]')
+        console.log(`Story2: Cleaning up ${clones.length} cloned nodes`)
         clones.forEach((clone) => {
           try {
             document.body.removeChild(clone)
-          } catch {}
+          } catch (e) {
+            console.warn('Story2: Failed to remove cloned node:', e)
+          }
         })
+
+        // Clean up any orphaned clones
+        const allClones = document.body.querySelectorAll('[data-cloned-story]')
+        if (allClones.length > 0) {
+          console.warn(`Story2: Found ${allClones.length} orphaned clones, cleaning up...`)
+          allClones.forEach(clone => {
+            try {
+              document.body.removeChild(clone)
+            } catch (e) {
+              // Ignore
+            }
+          })
+        }
+
         setIsGenerating2(false)
       }
     }
@@ -581,18 +718,37 @@ export default function CheckoutPage() {
     const hasContentChanged =
       contentHashRef2.current !== contentHash2 && contentHashRef2.current !== ''
 
-    // 🔑 Only generate when Story2 is the active (center) card
-    if (profileImage !== null && valuation.length > 0 && activeStoryIndex === 1) {
+    // Generate Story2 when data is ready (not dependent on activeStoryIndex)
+    if (profileImage !== null && valuation.length > 0) {
+      // Only clear if actual source data changed (not just content hash)
       if (hasContentChanged && flattenedImage2) {
+        console.log('[Story2] Source data changed, clearing image for regeneration')
         setFlattenedImage2(null)
       }
 
-      if (!flattenedImage2) {
+      // Only generate if we don't have an image AND we're not already generating
+      if (!flattenedImage2 && !isGenerating2 && !isGenerating) {
+        console.log('[Story2] Scheduling ONE-TIME generation in 1500ms')
         const timer = setTimeout(() => {
-          generateFlattenedImage2()
-        }, 300)
+          // Double-check we still need to generate (prevent race conditions)
+          if (!flattenedImage2 && !isGenerating2) {
+            console.log('[Story2] Starting generation now')
+            console.log('[Story2] DOM Check - profileImage exists:', !!profileImage)
+            console.log('[Story2] DOM Check - valuation items:', valuation.length)
+            console.log('[Story2] DOM Check - ref exists:', !!checkoutRef2.current)
+            generateFlattenedImage2()
+          } else {
+            console.log('[Story2] Skipping generation - already have image or currently generating')
+          }
+        }, 1500)
 
         return () => clearTimeout(timer)
+      } else {
+        console.log('[Story2] NOT generating:', {
+          hasFlattenedImage: !!flattenedImage2,
+          isGenerating1: isGenerating,
+          isGenerating2: isGenerating2
+        })
       }
     }
   }, [
@@ -604,7 +760,7 @@ export default function CheckoutPage() {
     FRAME_H,
     EXPORT_SCALE,
     contentHash2,
-    activeStoryIndex, // 👈 don't forget this
+    isTransitioning,
   ])
 
   // Restore Story3 image from sessionStorage if content hash matches
@@ -640,6 +796,9 @@ export default function CheckoutPage() {
       const node = checkoutRef3.current
 
       try {
+        // Force layout recalculation to ensure all elements are fully rendered
+        node.getBoundingClientRect()
+
         // Clone the node for off-screen rendering to avoid visual glitches
         const clonedNode = node.cloneNode(true) as HTMLElement
         clonedNode.setAttribute('data-cloned-story', '3')
@@ -683,7 +842,12 @@ export default function CheckoutPage() {
         })
 
         await waitForImages(clonedNode)
-        await new Promise((resolve) => setTimeout(resolve, 500))
+
+        // Wait for browser to complete all paint/layout operations
+        await waitForBrowserPaint()
+
+        // Extra delay for mobile to ensure full paint/render
+        await new Promise((resolve) => setTimeout(resolve, 800))
 
         console.log('Importing dom-to-image-more for Story3...')
         // @ts-ignore - dom-to-image-more doesn't have type definitions
@@ -704,7 +868,7 @@ export default function CheckoutPage() {
             width: `${exportWidth}px`,
             height: `${exportHeight}px`,
           },
-          quality: 1,
+          quality: 0.92,
           cacheBust: true,
           bgcolor: '#ffffff',
         })
@@ -714,6 +878,7 @@ export default function CheckoutPage() {
         console.log('Story3 export completed! Data URL length:', dataUrl.length)
         setFlattenedImage3(dataUrl)
         contentHashRef3.current = contentHash3
+        setLoadingProgress(100) // Story 3 complete
 
         if (typeof window !== 'undefined') {
           try {
@@ -728,11 +893,28 @@ export default function CheckoutPage() {
         console.error('Error generating Story3 flattened image:', err)
       } finally {
         const clonedNodes = document.body.querySelectorAll('[data-cloned-story="3"]')
+        console.log(`Story3: Cleaning up ${clonedNodes.length} cloned nodes`)
         clonedNodes.forEach((clone) => {
           try {
             document.body.removeChild(clone)
-          } catch {}
+          } catch (e) {
+            console.warn('Story3: Failed to remove cloned node:', e)
+          }
         })
+
+        // Clean up any orphaned clones
+        const allClones = document.body.querySelectorAll('[data-cloned-story]')
+        if (allClones.length > 0) {
+          console.warn(`Story3: Found ${allClones.length} orphaned clones, cleaning up...`)
+          allClones.forEach(clone => {
+            try {
+              document.body.removeChild(clone)
+            } catch (e) {
+              // Ignore
+            }
+          })
+        }
+
         setIsGenerating3(false)
       }
     }
@@ -741,12 +923,11 @@ export default function CheckoutPage() {
     const hasContentChanged =
       contentHashRef3.current !== contentHash3 && contentHashRef3.current !== ''
 
-    // 🔑 Only generate when Story3 is active (center card)
+    // Generate Story3 when data is ready (not dependent on activeStoryIndex)
     if (
       profileImage !== null &&
       Object.keys(quantities).length > 0 &&
-      purchasedItems.length > 0 &&
-      activeStoryIndex === 2
+      purchasedItems.length > 0
     ) {
       console.log('Story3 render check:', {
         hasFlattenedImage: !!flattenedImage3,
@@ -756,7 +937,6 @@ export default function CheckoutPage() {
         purchasedItemsCount: purchasedItems.length,
         isGenerating: isGenerating3,
         hasRef: !!checkoutRef3.current,
-        activeStoryIndex,
       })
 
       if (hasContentChanged && flattenedImage3) {
@@ -772,24 +952,35 @@ export default function CheckoutPage() {
         }
       }
 
-      if (!flattenedImage3 && !isGenerating3) {
-        console.log('Story3: Starting generation (no existing image, not generating)')
+      if (!flattenedImage3 && !isGenerating3 && !isTransitioning && !isGenerating2) {
+        console.log('[Story3] Scheduling generation in 3000ms')
+        // Wait for Story1 and Story2 to complete first
         const timer = setTimeout(() => {
-          console.log('Story3: Timer fired, calling generateFlattenedImage3')
+          console.log('[Story3] Starting generation now')
+          console.log('[Story3] DOM Check - profileImage exists:', !!profileImage)
+          console.log('[Story3] DOM Check - purchased items:', purchasedItems.length)
+          console.log('[Story3] DOM Check - quantities:', Object.keys(quantities).length)
+          console.log('[Story3] DOM Check - ref exists:', !!checkoutRef3.current)
           generateFlattenedImage3()
-        }, 500) // small delay is enough now
+        }, 3000)
 
         return () => {
-          console.log('Story3: Cleaning up timer')
+          console.log('[Story3] Cleaning up timer')
           clearTimeout(timer)
         }
+      } else {
+        console.log('[Story3] NOT generating:', {
+          hasFlattenedImage: !!flattenedImage3,
+          isGenerating: isGenerating3,
+          isGenerating2,
+          isTransitioning
+        })
       }
     } else {
       console.log('Story3: Conditions not met for generation', {
         hasProfileImage: profileImage !== null,
         hasQuantities: Object.keys(quantities).length > 0,
         purchasedItemsCount: purchasedItems.length,
-        activeStoryIndex,
       })
     }
   }, [
@@ -797,13 +988,22 @@ export default function CheckoutPage() {
     quantities,
     purchasedItems.length,
     isGenerating3,
+    isGenerating2,
     flattenedImage3,
     FRAME_W,
     FRAME_H,
     EXPORT_SCALE,
     contentHash3,
-    activeStoryIndex, // 👈 important
+    isTransitioning,
   ])
+
+  // Check if all images are ready
+  useEffect(() => {
+    if (flattenedImage && flattenedImage2 && flattenedImage3 && !allImagesReady) {
+      console.log('🎉 All images ready! Showing carousel...')
+      setAllImagesReady(true)
+    }
+  }, [flattenedImage, flattenedImage2, flattenedImage3, allImagesReady])
 
   const downloadAsImage = () => {
     // Get the current active story's image
@@ -840,6 +1040,58 @@ export default function CheckoutPage() {
         overflow: 'hidden',
       }}
     >
+      {/* Loading Screen - shown until all images are generated */}
+      {!allImagesReady && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+            gap: '24px',
+          }}
+        >
+          <div style={{
+            fontSize: 'clamp(18px, 5vw, 24px)',
+            fontWeight: '600',
+            color: '#1d1d1f',
+            marginBottom: '16px',
+          }}>
+            Preparing your stories...
+          </div>
+
+          {/* Progress bar */}
+          <div style={{
+            width: 'clamp(200px, 60vw, 300px)',
+            height: '8px',
+            backgroundColor: '#e5e5e5',
+            borderRadius: '4px',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: `${loadingProgress}%`,
+              height: '100%',
+              backgroundColor: '#0071e3',
+              transition: 'width 0.5s ease',
+            }} />
+          </div>
+
+          <div style={{
+            fontSize: 'clamp(14px, 4vw, 16px)',
+            color: '#666',
+          }}>
+            {loadingProgress}% complete
+          </div>
+        </div>
+      )}
+
       {/* Back to shop button */}
       <button
         onClick={() => router.push('/shop')}
@@ -1024,8 +1276,8 @@ export default function CheckoutPage() {
             height: `${FRAME_H}px`,
             background: '#fff',
             boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-            overflow: 'hidden',
-            display: flattenedImage ? 'none' : 'flex',
+            overflow: 'visible',
+            display: allImagesReady ? 'none' : 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1047,6 +1299,7 @@ export default function CheckoutPage() {
               left: 0,
               width: '100%',
               height: '100%',
+              overflow: 'visible',
             }}
           >
             <img
@@ -1259,7 +1512,7 @@ export default function CheckoutPage() {
         </div>
         
         {/* Display rendered image once generated - in same animated container */}
-        {flattenedImage && (
+        {flattenedImage && allImagesReady && (
           <img
             src={flattenedImage}
             alt="FaceCard Haul Export"
@@ -1323,8 +1576,8 @@ export default function CheckoutPage() {
                 height: `${FRAME_H}px`,
                 background: '#fff',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-                overflow: 'hidden',
-                display: flattenedImage2 ? 'none' : 'flex',
+                overflow: 'visible',
+                display: allImagesReady ? 'none' : 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1589,7 +1842,7 @@ export default function CheckoutPage() {
             </div>
             
             {/* Display rendered Story2 image once generated - in same animated container */}
-            {flattenedImage2 && (
+            {flattenedImage2 && allImagesReady && (
               <img
                 src={flattenedImage2}
                 alt="FaceCard Story2 Export"
@@ -1653,8 +1906,8 @@ export default function CheckoutPage() {
                 height: `${FRAME_H}px`,
                 background: '#fff',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-                overflow: 'hidden',
-                display: flattenedImage3 ? 'none' : 'flex',
+                overflow: 'visible',
+                display: allImagesReady ? 'none' : 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1676,6 +1929,7 @@ export default function CheckoutPage() {
                   left: 0,
                   width: '100%',
                   height: '100%',
+                  overflow: 'visible',
                 }}
               >
                 <img
@@ -1814,7 +2068,7 @@ export default function CheckoutPage() {
             </div>
             
             {/* Display rendered Story3 image once generated - in same animated container */}
-            {flattenedImage3 && (
+            {flattenedImage3 && allImagesReady && (
               <img
                 src={flattenedImage3}
                 alt="FaceCard Story3 Export"
