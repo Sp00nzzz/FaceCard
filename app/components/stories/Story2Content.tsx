@@ -19,6 +19,8 @@ export function Story2Content({
 }: Story2ContentProps) {
   // Calculate scale for license card to match receipt width
   const LICENSE_CARD_SCALE = (400 * 0.6) / LICENSE_CARD.WIDTH
+  const LICENSE_TOP = 220
+  const RECEIPT_TOP = 700
 
   return (
     <div
@@ -54,7 +56,7 @@ export function Story2Content({
           style={{
             position: 'absolute',
             left: '50%',
-            bottom: '1250px',
+            top: `${LICENSE_TOP}px`,
             transform: `translate3d(-50%, 0, 0) scale(${LICENSE_CARD_SCALE * 2 + 200 / LICENSE_CARD.WIDTH})`,
             transformOrigin: 'bottom center',
             zIndex: 1,
@@ -71,12 +73,13 @@ export function Story2Content({
       {/* Receipt on top of Story2 */}
       {valuation.length > 0 && (
         <div
+          className="story2-receipt"
           style={{
             position: 'absolute',
             left: '50%',
-            bottom: '-40px',
+            top: `${RECEIPT_TOP}px`,
             transform: 'translateX(-50%)',
-            transformOrigin: 'bottom center',
+            transformOrigin: 'top center',
             zIndex: 1,
             opacity: 1,
             pointerEvents: 'none',

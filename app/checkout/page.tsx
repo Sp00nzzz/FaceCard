@@ -218,6 +218,7 @@ export default function CheckoutPage() {
             top: calc(clamp(60px, 8vw, 80px) + 30px) !important;
             transform: translateX(-50%) scale(0.9) !important;
           }
+
         }
 
         [data-checkout-content-2] img {
