@@ -7,7 +7,8 @@ interface StoryCardProps {
   transform: CardTransform
   children: React.ReactNode
   flattenedImage: string | null
-  allImagesReady: boolean
+  showFlattenedImage: boolean
+  hideContent: boolean
   contentRef?: React.RefObject<HTMLDivElement>
 }
 
@@ -16,7 +17,8 @@ export function StoryCard({
   transform,
   children,
   flattenedImage,
-  allImagesReady,
+  showFlattenedImage,
+  hideContent,
   contentRef,
 }: StoryCardProps) {
   return (
@@ -54,7 +56,7 @@ export function StoryCard({
               background: '#fff',
               boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
               overflow: 'visible',
-              display: allImagesReady ? 'none' : 'flex',
+              display: hideContent ? 'none' : 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
@@ -67,7 +69,7 @@ export function StoryCard({
           </div>
 
           {/* Display rendered image once generated - in same animated container */}
-          {flattenedImage && allImagesReady && (
+          {flattenedImage && showFlattenedImage && (
             <img
               src={flattenedImage}
               alt={`FaceCard Story${index + 1} Export`}

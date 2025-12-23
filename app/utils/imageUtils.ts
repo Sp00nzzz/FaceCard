@@ -3,9 +3,16 @@ export function waitForImages(root: HTMLElement): Promise<void> {
   const images = Array.from(root.querySelectorAll('img'))
   return Promise.all(
     images.map((img) => {
+      const decodeImage = () => {
+        if (typeof img.decode === 'function') {
+          return img.decode().catch(() => undefined)
+        }
+        return Promise.resolve()
+      }
+
       // If image is already loaded, resolve immediately
       if (img.complete && img.naturalWidth > 0) {
-        return Promise.resolve()
+        return decodeImage()
       }
       // Otherwise, wait for load or error
       return new Promise<void>((resolve) => {
@@ -14,8 +21,10 @@ export function waitForImages(root: HTMLElement): Promise<void> {
           resolve()
         }, 10000) // 10 second timeout
         img.onload = () => {
-          clearTimeout(timeout)
-          resolve()
+          decodeImage().finally(() => {
+            clearTimeout(timeout)
+            resolve()
+          })
         }
         img.onerror = () => {
           console.error('Image load error:', img.src)

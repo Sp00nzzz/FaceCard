@@ -35,6 +35,7 @@ export default function CheckoutPage() {
   const [currentTime, setCurrentTime] = useState<string>('')
   const [allImagesReady, setAllImagesReady] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
 
   const story1Ref = useRef<HTMLDivElement>(null)
   const story2Ref = useRef<HTMLDivElement>(null)
@@ -56,6 +57,18 @@ export default function CheckoutPage() {
     return () => {
       document.body.style.overflow = 'unset'
     }
+  }, [])
+
+  useEffect(() => {
+    const updateIsMobile = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobile(window.innerWidth <= 768)
+      }
+    }
+
+    updateIsMobile()
+    window.addEventListener('resize', updateIsMobile)
+    return () => window.removeEventListener('resize', updateIsMobile)
   }, [])
 
   useEffect(() => {
@@ -151,6 +164,8 @@ export default function CheckoutPage() {
     setAllImagesReady(!!(story1Image && story2Image && story3Image))
   }, [story1Image, story2Image, story3Image])
 
+  const showFlattenedImages = allImagesReady && !isMobile
+
   const downloadAsImage = () => {
     const images = [story1Image, story2Image, story3Image]
     const imageToDownload = images[activeIndex] || null
@@ -179,7 +194,7 @@ export default function CheckoutPage() {
         overflow: 'hidden',
       }}
     >
-      {!allImagesReady && (
+      {!allImagesReady && !isMobile && (
         <LoadingScreen progress={loadingProgress} />
       )}
 
@@ -250,7 +265,8 @@ export default function CheckoutPage() {
           index={0}
           transform={getCardTransform(0)}
           flattenedImage={story1Image}
-          allImagesReady={allImagesReady}
+          showFlattenedImage={showFlattenedImages}
+          hideContent={showFlattenedImages}
           contentRef={story1Ref}
         >
           <Story1Content
@@ -264,7 +280,8 @@ export default function CheckoutPage() {
           index={1}
           transform={getCardTransform(1)}
           flattenedImage={story2Image}
-          allImagesReady={allImagesReady}
+          showFlattenedImage={showFlattenedImages}
+          hideContent={showFlattenedImages}
           contentRef={story2Ref}
         >
           <Story2Content
@@ -279,7 +296,8 @@ export default function CheckoutPage() {
           index={2}
           transform={getCardTransform(2)}
           flattenedImage={story3Image}
-          allImagesReady={allImagesReady}
+          showFlattenedImage={showFlattenedImages}
+          hideContent={showFlattenedImages}
           contentRef={story3Ref}
         >
           <Story3Content

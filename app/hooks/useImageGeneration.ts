@@ -84,6 +84,15 @@ export function useImageGeneration(
           contentWrapper.style.overflow = 'visible'
         }
 
+        // Normalize image URLs for mobile Safari + ensure CORS-safe loads in exports
+        const imageNodes = clonedNode.querySelectorAll('img')
+        imageNodes.forEach((img) => {
+          img.crossOrigin = 'anonymous'
+          if (img.src.startsWith('/')) {
+            img.src = new URL(img.src, window.location.href).href
+          }
+        })
+
         // Ensure absolutely-positioned children don't clip (for Story3)
         if (storyIndex === 3) {
           const allDivs = clonedNode.querySelectorAll('div') as NodeListOf<HTMLElement>
