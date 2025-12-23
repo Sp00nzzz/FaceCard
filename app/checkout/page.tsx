@@ -51,6 +51,8 @@ export default function CheckoutPage() {
     return Number.isFinite(nextScale) && nextScale > 0 ? Math.max(0.22, nextScale) : 0.35
   })
   const [assetsReady, setAssetsReady] = useState(false)
+  const [iosExportUrl, setIosExportUrl] = useState<string | null>(null)
+  const [isPreparingExport, setIsPreparingExport] = useState(false)
 
   const story1Ref = useRef<HTMLDivElement>(null)
   const story2Ref = useRef<HTMLDivElement>(null)
@@ -177,6 +179,126 @@ export default function CheckoutPage() {
     Promise.all(urls.map(preloadImage)).finally(() => setAssetsReady(true))
   }, [profileImage, purchasedItems])
 
+  const buildIosExport = async () => {
+    if (!mobileCardRef.current) return null
+
+    setIsPreparingExport(true)
+    try {
+      const node = mobileCardRef.current
+      const clonedNode = node.cloneNode(true) as HTMLElement
+      clonedNode.style.position = 'absolute'
+      clonedNode.style.left = '-9999px'
+      clonedNode.style.top = '0'
+      clonedNode.style.opacity = '1'
+      clonedNode.style.visibility = 'visible'
+      clonedNode.style.display = 'flex'
+      clonedNode.style.zIndex = '-1'
+      document.body.appendChild(clonedNode)
+
+      const cacheBust = `cb=${Date.now()}`
+      const withCacheBust = (url: string) => {
+        if (url.includes('data:')) return url
+        return `${url}${url.includes('?') ? '&' : '?'}${cacheBust}`
+      }
+
+      const blobToDataUrl = (blob: Blob): Promise<string> => {
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
+      }
+
+      const inlineAssets = async () => {
+        const imgNodes = Array.from(clonedNode.querySelectorAll('img'))
+        await Promise.all(
+          imgNodes.map(async (img) => {
+            const rawSrc = img.getAttribute('src') || img.src
+            if (!rawSrc || rawSrc.startsWith('data:')) return
+            const absoluteSrc = rawSrc.startsWith('/')
+              ? resolveAssetUrl(rawSrc)
+              : rawSrc
+            const srcWithBust = withCacheBust(absoluteSrc)
+            try {
+              const response = await fetch(srcWithBust, { cache: 'no-store' })
+              const blob = await response.blob()
+              img.src = await blobToDataUrl(blob)
+            } catch (err) {
+              console.warn('Unable to inline image:', srcWithBust, err)
+              img.src = srcWithBust
+            }
+          })
+        )
+
+        const nodesWithBg = Array.from(clonedNode.querySelectorAll<HTMLElement>('*'))
+        await Promise.all(
+          nodesWithBg.map(async (nodeElement) => {
+            const bgImage = nodeElement.style.backgroundImage
+            if (!bgImage || !bgImage.includes('url(')) return
+
+            const urls = Array.from(bgImage.matchAll(/url\((['"]?)(.*?)\1\)/g))
+            if (urls.length === 0) return
+
+            let updatedBg = bgImage
+            for (const match of urls) {
+              const url = match[2]
+              if (!url || url.startsWith('data:')) continue
+              const absoluteUrl = url.startsWith('/') ? resolveAssetUrl(url) : url
+              const srcWithBust = withCacheBust(absoluteUrl)
+              try {
+                const response = await fetch(srcWithBust, { cache: 'no-store' })
+                const blob = await response.blob()
+                const dataUrl = await blobToDataUrl(blob)
+                updatedBg = updatedBg.replace(match[0], `url("${dataUrl}")`)
+              } catch (err) {
+                console.warn('Unable to inline background image:', srcWithBust, err)
+              }
+            }
+
+            if (updatedBg !== bgImage) {
+              nodeElement.style.backgroundImage = updatedBg
+            }
+          })
+        )
+      }
+
+      await inlineAssets()
+      await waitForImages(clonedNode)
+      await waitForBrowserPaint()
+      await new Promise((resolve) => setTimeout(resolve, 400))
+
+      // @ts-ignore - dom-to-image-more doesn't have type definitions
+      const domtoimageModule = await import('dom-to-image-more')
+      const domtoimage = domtoimageModule.default || domtoimageModule
+      const dataUrl = await domtoimage.toPng(clonedNode, {
+        width: FRAME_DIMENSIONS.WIDTH,
+        height: FRAME_DIMENSIONS.HEIGHT,
+        style: {
+          width: `${FRAME_DIMENSIONS.WIDTH}px`,
+          height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+        },
+        quality: 0.92,
+        cacheBust: true,
+        bgcolor: '#ffffff',
+      })
+
+      document.body.removeChild(clonedNode)
+      setIosExportUrl(dataUrl)
+      return dataUrl
+    } catch (err) {
+      console.warn('Unable to export iOS image:', err)
+      return null
+    } finally {
+      setIsPreparingExport(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isIOS || !assetsReady) return
+    setIosExportUrl(null)
+    buildIosExport()
+  }, [isIOS, assetsReady, activeIndex, profileImage, quantities, valuation])
+
   const contentHash1 = useMemo(() => {
     const itemsKey = JSON.stringify(quantities)
     const profileKey = profileImage || ''
@@ -247,26 +369,13 @@ export default function CheckoutPage() {
     const imageToDownload = images[activeIndex] || null
 
     if (isIOS && mobileCardRef.current) {
-      try {
-        const node = mobileCardRef.current
-        await waitForImages(node)
-        await waitForBrowserPaint()
+      if (isPreparingExport) {
+        alert('Preparing image. Please try again in a moment.')
+        return
+      }
 
-        // @ts-ignore - dom-to-image-more doesn't have type definitions
-        const domtoimageModule = await import('dom-to-image-more')
-        const domtoimage = domtoimageModule.default || domtoimageModule
-        const dataUrl = await domtoimage.toPng(node, {
-          width: FRAME_DIMENSIONS.WIDTH,
-          height: FRAME_DIMENSIONS.HEIGHT,
-          style: {
-            width: `${FRAME_DIMENSIONS.WIDTH}px`,
-            height: `${FRAME_DIMENSIONS.HEIGHT}px`,
-          },
-          quality: 0.92,
-          cacheBust: true,
-          bgcolor: '#ffffff',
-        })
-
+      const dataUrl = iosExportUrl || await buildIosExport()
+      if (dataUrl) {
         const filename = `facecard-story${activeIndex + 1}-${FRAME_DIMENSIONS.WIDTH}x${FRAME_DIMENSIONS.HEIGHT}.png`
         const dataUrlToBlob = (dataUrlValue: string): Blob | null => {
           if (!dataUrlValue.startsWith('data:')) return null
@@ -304,8 +413,6 @@ export default function CheckoutPage() {
           newTab.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;" />`)
         }
         return
-      } catch (err) {
-        console.warn('Unable to export iOS image:', err)
       }
     }
 
