@@ -1,99 +1,75 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { BackButton } from '../components/buttons/BackButton'
+import { DownloadButton } from '../components/buttons/DownloadButton'
+import { NavigationButton } from '../components/buttons/NavigationButton'
+import { CarouselContainer } from '../components/carousel/CarouselContainer'
+import { StoryCard } from '../components/carousel/StoryCard'
+import { Story1Content } from '../components/stories/Story1Content'
+import { Story2Content } from '../components/stories/Story2Content'
+import { Story3Content } from '../components/stories/Story3Content'
+import { LoadingScreen } from '../components/ui/LoadingScreen'
+import { useCarousel } from '../hooks/useCarousel'
+import { useImageGeneration } from '../hooks/useImageGeneration'
+import { SHOP_ITEMS } from '../constants/shopItems'
+import { ANIMATIONS, COLORS, FRAME_DIMENSIONS, IDcardBG, LOGO, STORY1_BG, STORY2_BG, STORY3_BG, TEXTURE, TYPOGRAPHY } from '../constants'
+import { FaceAttribute } from '../types'
+import { formatDate, formatTime } from '../utils/formatters'
+import { getCapturedImage, getCart, getValuation } from '../utils/sessionStorageManager'
+import { resolveAssetUrl, waitForImages, waitForBrowserPaint } from '../utils/imageUtils'
 
-// Add floating animation styles
-const floatingAnimation = `
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-`
-
-// Background image for the ID card. Place the file at `public/IDcardBG.png`.
-const IDcardBG = '/IDcardBG.png'
-
-interface ShopItem {
-  id: string
-  name: string
-  price: number
-  image?: string
-}
-
-const SHOP_ITEMS: ShopItem[] = [
-  { id: '1', name: 'Sonny Angel', price: 12.99, image: '/Items/sonny.png' },
-  { id: '2', name: 'Aritzia Hoodie', price: 120.99, image: '/Items/AritziaHoodie.png'},
-  { id: '3', name: '1 Year of 𝕏 Premium ', price: 96.99, image: '/Items/Xpremium.png' },
-  { id: '4', name: 'Hermès Birkin Bag', price: 45000.99, image: '/Items/BirkinBag.png' },
-  { id: '5', name: 'Steam Deck', price: 549.99, image: '/Items/SteamDeck.png' },
-  { id: '6', name: 'Pizza Slice', price: 3.99, image: '/Items/pizzaslice.png' },
-  { id: '7', name: 'Spot®', price: 74900.99, image: '/Items/robotDog.png' },
-  { id: '8', name: 'Airpods', price: 249.99, image: '/Items/airpods.png' },
-  { id: '9', name: 'iPhone 16', price: 999.99, image: '/Items/iphone.png' },
-  { id: '10', name: 'Gorilla', price: 2500.99, image: '/Items/gorilla.png' },
-  { id: '11', name: 'Goose Farm', price: 125000.99, image: '/Items/goosefarm.png' },
-  { id: '12', name: 'Porsche', price: 95000.99, image: '/Items/porsche.png' },
-  { id: '13', name: 'Single Family Home', price: 450000.99, image: '/Items/house.png' },
-  { id: '14', name: 'Trip to Japan', price: 3500.99, image: '/Items/Japan.png' },
-  { id: '15', name: 'Ford F1-50', price: 45000.99, image: '/Items/Ford F150.png' },
-  { id: '16', name: 'Sign Lebron James', price: 2500000.99, image: '/Items/lebronjames.png' },
-  { id: '17', name: 'Chanel Glasses', price: 850.99, image: '/Items/chanelglasses.png' },
-  { id: '18', name: 'Tiffany & Co. Ring', price: 15000.99, image: '/Items/tiffanyRing.png' },
-  { id: '19', name: 'Unlimited Nobu', price: 50000.99, image: '/Items/Nobu.png' },
-  { id: '20', name: 'Drake Feature', price: 250000.99, image: '/Items/Drake.png' },
-  { id: '21', name: 'Matcha Latte', price: 6.99, image: '/Items/matcha.png' },
-  { id: '22', name: 'Hire Rico Jackson', price: 110.99, image: '/Items/Rico.png' },
-  { id: '23', name: 'Pibble', price: 1299.99, image: '/Items/pibble.png' },
-  { id: '24', name: '1st Edition Charizard', price: 8500.99, image: '/Items/charizard.png' },
-  { id: '25', name: 'Tesla Cybertruck', price: 38990.99, image: '/Items/Cybertruck.png' },
-  { id: '26', name: 'Dinosaur Fossil', price: 250000.99, image: '/Items/dinosaur.png' },
-  { id: '27', name: 'Private Jet', price: 1500000.99, image: '/Items/jet.png'},
-  { id: '28', name: 'Yacht', price: 5000000.99, image: '/Items/yacht.png' },
-  { id: '29', name: 'Island', price: 10000000.99, image: '/Items/island.png' },
-  { id: '30', name: 'Trip to Space ', price: 55000000.99, image: '/Items/Spaceship.png' },
-  { id: '31', name: 'Movie W/ Leonardo', price: 20000000.99, image: '/Items/leonardo.png' },
-].sort((a, b) => a.price - b.price)
+const FALLBACK_VALUATION: FaceAttribute[] = [
+  { name: 'Natural Beauty', price: 999999.99 },
+  { name: 'Confidence', price: 500000.00 },
+  { name: 'Style Points', price: 250000.00 },
+  { name: 'Face Card', price: 1000000.00 },
+]
 
 export default function CheckoutPage() {
   const router = useRouter()
   const [profileImage, setProfileImage] = useState<string | null>(null)
   const [quantities, setQuantities] = useState<Record<string, number>>({})
-  const checkoutRef = useRef<HTMLDivElement>(null)
-  const checkoutRef2 = useRef<HTMLDivElement>(null)
-  const checkoutRef3 = useRef<HTMLDivElement>(null)
-  const [flattenedImage, setFlattenedImage] = useState<string | null>(null)
-  const [flattenedImage2, setFlattenedImage2] = useState<string | null>(null)
-  const [flattenedImage3, setFlattenedImage3] = useState<string | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isGenerating2, setIsGenerating2] = useState(false)
-  const [isGenerating3, setIsGenerating3] = useState(false)
-  const [allImagesReady, setAllImagesReady] = useState(false)
-  const [loadingProgress, setLoadingProgress] = useState(0)
-  const contentHashRef = useRef<string>('')
-  const contentHashRef2 = useRef<string>('')
-  const contentHashRef3 = useRef<string>('')
-  const [cardHover, setCardHover] = useState(false)
-  const [valuation, setValuation] = useState<Array<{ name: string; price: number }>>([])
+  const [valuation, setValuation] = useState<FaceAttribute[]>([])
   const [currentDate, setCurrentDate] = useState<string>('')
   const [currentTime, setCurrentTime] = useState<string>('')
-  const [cardTilt, setCardTilt] = useState({
-    rotateX: 0,
-    rotateY: 0,
-    shineX: 50,
-    shineY: 0,
+  const [allImagesReady, setAllImagesReady] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
+  const [isIOS, setIsIOS] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const ua = window.navigator.userAgent
+    const isAppleDevice = /iPad|iPhone|iPod/.test(ua)
+    const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(ua)
+    return isAppleDevice && isSafari
   })
-  const [activeStoryIndex, setActiveStoryIndex] = useState(0) // 0 = Story1, 1 = Story2, 2 = Story3
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const carouselRef = useRef<HTMLDivElement>(null)
-  const touchStartX = useRef<number>(0)
-  const touchEndX = useRef<number>(0)
+  const [mobileScale, setMobileScale] = useState(() => {
+    if (typeof window === 'undefined') return 0.35
+    const widthScale = window.innerWidth / FRAME_DIMENSIONS.WIDTH
+    const heightScale = Math.max(0, window.innerHeight - 160) / FRAME_DIMENSIONS.HEIGHT
+    const nextScale = Math.min(widthScale, heightScale, 0.5)
+    return Number.isFinite(nextScale) && nextScale > 0 ? Math.max(0.22, nextScale) : 0.35
+  })
+  const [assetsReady, setAssetsReady] = useState(false)
+  const [iosExportUrl, setIosExportUrl] = useState<string | null>(null)
+  const [isPreparingExport, setIsPreparingExport] = useState(false)
 
-  // Prevent body scrolling
+  const story1Ref = useRef<HTMLDivElement>(null)
+  const story2Ref = useRef<HTMLDivElement>(null)
+  const story3Ref = useRef<HTMLDivElement>(null)
+  const mobileCardRef = useRef<HTMLDivElement>(null)
+
+  const {
+    activeIndex,
+    isTransitioning,
+    handleNext,
+    handlePrevious,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    getCardTransform,
+  } = useCarousel(3)
+
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => {
@@ -101,928 +77,414 @@ export default function CheckoutPage() {
     }
   }, [])
 
-  // Handle swipe gestures
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX
-  }
-
-  const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return
-    
-    const distance = touchStartX.current - touchEndX.current
-    const minSwipeDistance = 50
-
-    if (Math.abs(distance) > minSwipeDistance) {
-      if (distance > 0) {
-        // Swipe left - go to next
-        handleNext()
-      } else {
-        // Swipe right - go to previous
-        handlePrevious()
-      }
-    }
-    
-    touchStartX.current = 0
-    touchEndX.current = 0
-  }
-
-  const handleNext = () => {
-    if (isTransitioning) return
-    console.log('[Carousel] handleNext - Starting transition')
-    setIsTransitioning(true)
-    setActiveStoryIndex((prev) => {
-      const next = prev === 2 ? 0 : prev + 1
-      console.log('[Carousel] Moving from', prev, 'to', next)
-      return next
-    })
-    setTimeout(() => {
-      console.log('[Carousel] Transition complete')
-      setIsTransitioning(false)
-    }, 600)
-  }
-
-  const handlePrevious = () => {
-    if (isTransitioning) return
-    console.log('[Carousel] handlePrevious - Starting transition')
-    setIsTransitioning(true)
-    setActiveStoryIndex((prev) => {
-      const next = prev === 0 ? 2 : prev - 1
-      console.log('[Carousel] Moving from', prev, 'to', next)
-      return next
-    })
-    setTimeout(() => {
-      console.log('[Carousel] Transition complete')
-      setIsTransitioning(false)
-    }, 600)
-  }
-
-  // Calculate card transform based on position relative to active index
-  const getCardTransform = (index: number) => {
-    const offset = index - activeStoryIndex
-    const absOffset = Math.abs(offset)
-    
-    // Normalize offset for wrapping (e.g., if active is 0 and card is 2, offset should be -1)
-    let normalizedOffset = offset
-    if (offset > 1) normalizedOffset = offset - 3
-    if (offset < -1) normalizedOffset = offset + 3
-    
-    const absNormalizedOffset = Math.abs(normalizedOffset)
-    
-    // Position: center card at 0, left at -1, right at +1
-    // Using viewport width for responsive spacing
-    const translateX = normalizedOffset * 50 // 50vw spacing between cards
-    
-    // Rotation: side cards rotated 30-35 degrees
-    const rotationY = normalizedOffset * 30
-    
-    // Scale: front card 1.0, side cards 0.8
-    const scale = absNormalizedOffset === 0 ? 1 : 0.8
-    
-    // Opacity: front card 1.0, side cards 0.5
-    const opacity = absNormalizedOffset === 0 ? 1 : 0.5
-    
-    // Blur: side cards get subtle blur for depth
-    const blur = absNormalizedOffset === 0 ? '0px' : '2px'
-    
-    // Z-index: front card on top (higher values to ensure cards are above other elements)
-    const zIndex = absNormalizedOffset === 0 ? 20 : 15 - absNormalizedOffset
-    
-    // Vertical position: center card moved down by 50px
-    const translateY = absNormalizedOffset === 0 ? 50 : 0
-    
-    // Check if this is the center card
-    const isCenter = absNormalizedOffset === 0
-    
-    return {
-      translateX,
-      translateY,
-      rotationY,
-      scale,
-      opacity,
-      blur,
-      zIndex,
-      isCenter,
-    }
-  }
-
-  // Load valuation data and set date/time
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const storedValuation = window.sessionStorage.getItem('facecard_valuation')
-        if (storedValuation) {
-          setValuation(JSON.parse(storedValuation))
-        } else {
-          // TESTING: Add placeholder valuation data
-          setValuation([
-            { name: 'Natural Beauty', price: 999999.99 },
-            { name: 'Confidence', price: 500000.00 },
-            { name: 'Style Points', price: 250000.00 },
-            { name: 'Face Card', price: 1000000.00 },
-          ])
+    const updateIsIOS = () => {
+      if (typeof window !== 'undefined') {
+        const ua = window.navigator.userAgent
+        const isAppleDevice = /iPad|iPhone|iPod/.test(ua)
+        const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(ua)
+        const nextIsIOS = isAppleDevice && isSafari
+        setIsIOS(nextIsIOS)
+
+        if (nextIsIOS) {
+          const widthScale = window.innerWidth / FRAME_DIMENSIONS.WIDTH
+          const heightScale = Math.max(0, window.innerHeight - 160) / FRAME_DIMENSIONS.HEIGHT
+          const nextScale = Math.min(widthScale, heightScale, 0.5)
+          if (Number.isFinite(nextScale) && nextScale > 0) {
+            setMobileScale(Math.max(0.22, nextScale))
+          }
         }
-        const now = new Date()
-        setCurrentDate(now.toLocaleDateString())
-        setCurrentTime(now.toLocaleTimeString())
-      } catch (err) {
-        console.warn('Unable to read valuation from sessionStorage:', err)
       }
     }
+
+    updateIsIOS()
+    window.addEventListener('resize', updateIsIOS)
+    return () => window.removeEventListener('resize', updateIsIOS)
   }, [])
 
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        const stored = window.sessionStorage.getItem('facecard_captured_image')
-        if (stored) {
-          setProfileImage(stored)
-        } else {
-          // TESTING: Use placeholder image if no camera image
-          setProfileImage('/placeholder-profile.png')
-        }
+    const storedValuation = getValuation()
+    setValuation(storedValuation || FALLBACK_VALUATION)
+    const now = new Date()
+    setCurrentDate(formatDate(now))
+    setCurrentTime(formatTime(now))
+  }, [])
 
-        const storedCart = window.sessionStorage.getItem('facecard_cart')
-        if (storedCart) {
-          const parsedCart = JSON.parse(storedCart) as Record<string, number>
-          setQuantities(parsedCart)
-        } else {
-          // TESTING: Commented out redirect to allow testing without cart
-          // router.push('/shop')
+  useEffect(() => {
+    const storedImage = getCapturedImage()
+    setProfileImage(storedImage || '/placeholder-profile.png')
 
-          // Add some test items for demonstration
-          setQuantities({
-            '1': 1,
-            '2': 1,
-            '8': 1,
-            '9': 1,
-          })
-        }
-      }
-    } catch (err) {
-      console.warn('Unable to read data from sessionStorage:', err)
-      // TESTING: Commented out redirect
-      // router.push('/shop')
+    const storedCart = getCart()
+    if (storedCart) {
+      setQuantities(storedCart)
+    } else {
+      setQuantities({
+        '1': 1,
+        '2': 1,
+        '8': 1,
+        '9': 1,
+      })
     }
-  }, [router])
+  }, [])
 
-  const purchasedItems = SHOP_ITEMS.filter(item => (quantities[item.id] || 0) > 0)
-  const totalSpent = purchasedItems.reduce((sum, item) => sum + (item.price * (quantities[item.id] || 0)), 0)
+  const purchasedItems = useMemo(
+    () => SHOP_ITEMS.filter(item => (quantities[item.id] || 0) > 0),
+    [quantities]
+  )
 
-  const calculateReceiptTotal = () => {
-    const subtotal = valuation.reduce((sum, item) => sum + item.price, 0)
-    const tax = subtotal * 0.08 // 8% tax
-    const total = subtotal + tax
-    return { subtotal, tax, total }
+  useEffect(() => {
+    const preloadImage = (src: string) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image()
+        const timeout = setTimeout(() => resolve(), 8000)
+        img.onload = () => {
+          clearTimeout(timeout)
+          if (typeof img.decode === 'function') {
+            img.decode().catch(() => undefined).finally(() => resolve())
+          } else {
+            resolve()
+          }
+        }
+        img.onerror = () => {
+          clearTimeout(timeout)
+          resolve()
+        }
+        img.src = src
+      })
+    }
+
+    const assetUrls = [
+      STORY1_BG,
+      STORY2_BG,
+      STORY3_BG,
+      IDcardBG,
+      LOGO,
+      TEXTURE,
+    ].map(resolveAssetUrl)
+
+    const itemUrls = purchasedItems
+      .map((item) => item.image)
+      .filter((src): src is string => !!src)
+      .map(resolveAssetUrl)
+
+    const profileUrls = profileImage ? [resolveAssetUrl(profileImage)] : []
+    const urls = [...assetUrls, ...itemUrls, ...profileUrls]
+
+    if (urls.length === 0) {
+      setAssetsReady(true)
+      return
+    }
+
+    setAssetsReady(false)
+    Promise.all(urls.map(preloadImage)).finally(() => setAssetsReady(true))
+  }, [profileImage, purchasedItems])
+
+  const buildIosExport = async () => {
+    if (!mobileCardRef.current) return null
+
+    setIsPreparingExport(true)
+    try {
+      const node = mobileCardRef.current
+      const clonedNode = node.cloneNode(true) as HTMLElement
+      clonedNode.style.position = 'absolute'
+      clonedNode.style.left = '-9999px'
+      clonedNode.style.top = '0'
+      clonedNode.style.opacity = '1'
+      clonedNode.style.visibility = 'visible'
+      clonedNode.style.display = 'flex'
+      clonedNode.style.zIndex = '-1'
+      document.body.appendChild(clonedNode)
+
+      const cacheBust = `cb=${Date.now()}`
+      const withCacheBust = (url: string) => {
+        if (url.includes('data:')) return url
+        return `${url}${url.includes('?') ? '&' : '?'}${cacheBust}`
+      }
+
+      const blobToDataUrl = (blob: Blob): Promise<string> => {
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
+      }
+
+      const inlineAssets = async () => {
+        const imgNodes = Array.from(clonedNode.querySelectorAll('img'))
+        await Promise.all(
+          imgNodes.map(async (img) => {
+            const rawSrc = img.getAttribute('src') || img.src
+            if (!rawSrc || rawSrc.startsWith('data:')) return
+            const absoluteSrc = rawSrc.startsWith('/')
+              ? resolveAssetUrl(rawSrc)
+              : rawSrc
+            const srcWithBust = withCacheBust(absoluteSrc)
+            try {
+              const response = await fetch(srcWithBust, { cache: 'no-store' })
+              const blob = await response.blob()
+              img.src = await blobToDataUrl(blob)
+            } catch (err) {
+              console.warn('Unable to inline image:', srcWithBust, err)
+              img.src = srcWithBust
+            }
+          })
+        )
+
+        const nodesWithBg = Array.from(clonedNode.querySelectorAll<HTMLElement>('*'))
+        await Promise.all(
+          nodesWithBg.map(async (nodeElement) => {
+            const bgImage = nodeElement.style.backgroundImage
+            if (!bgImage || !bgImage.includes('url(')) return
+
+            const urls = Array.from(bgImage.matchAll(/url\((['"]?)(.*?)\1\)/g))
+            if (urls.length === 0) return
+
+            let updatedBg = bgImage
+            for (const match of urls) {
+              const url = match[2]
+              if (!url || url.startsWith('data:')) continue
+              const absoluteUrl = url.startsWith('/') ? resolveAssetUrl(url) : url
+              const srcWithBust = withCacheBust(absoluteUrl)
+              try {
+                const response = await fetch(srcWithBust, { cache: 'no-store' })
+                const blob = await response.blob()
+                const dataUrl = await blobToDataUrl(blob)
+                updatedBg = updatedBg.replace(match[0], `url("${dataUrl}")`)
+              } catch (err) {
+                console.warn('Unable to inline background image:', srcWithBust, err)
+              }
+            }
+
+            if (updatedBg !== bgImage) {
+              nodeElement.style.backgroundImage = updatedBg
+            }
+          })
+        )
+      }
+
+      await inlineAssets()
+      await waitForImages(clonedNode)
+      await waitForBrowserPaint()
+      await new Promise((resolve) => setTimeout(resolve, 400))
+
+      // @ts-ignore - dom-to-image-more doesn't have type definitions
+      const domtoimageModule = await import('dom-to-image-more')
+      const domtoimage = domtoimageModule.default || domtoimageModule
+      const dataUrl = await domtoimage.toPng(clonedNode, {
+        width: FRAME_DIMENSIONS.WIDTH,
+        height: FRAME_DIMENSIONS.HEIGHT,
+        style: {
+          width: `${FRAME_DIMENSIONS.WIDTH}px`,
+          height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+        },
+        quality: 0.92,
+        cacheBust: true,
+        bgcolor: '#ffffff',
+      })
+
+      document.body.removeChild(clonedNode)
+      setIosExportUrl(dataUrl)
+      return dataUrl
+    } catch (err) {
+      console.warn('Unable to export iOS image:', err)
+      return null
+    } finally {
+      setIsPreparingExport(false)
+    }
   }
 
-  // Generate content hash for Story1 (based on quantities and profile image)
+  useEffect(() => {
+    if (!isIOS || !assetsReady) return
+    setIosExportUrl(null)
+    buildIosExport()
+  }, [isIOS, assetsReady, activeIndex, profileImage, quantities, valuation])
+
   const contentHash1 = useMemo(() => {
     const itemsKey = JSON.stringify(quantities)
     const profileKey = profileImage || ''
     return `${itemsKey}-${profileKey}`
   }, [quantities, profileImage])
 
-  // Generate content hash for Story2 (based on valuation and profile image)
   const contentHash2 = useMemo(() => {
     const valuationKey = JSON.stringify(valuation)
     const profileKey = profileImage || ''
     return `${valuationKey}-${profileKey}`
   }, [valuation, profileImage])
 
-  // Generate content hash for Story3 (same as Story1 - based on quantities and profile image)
   const contentHash3 = useMemo(() => {
     const itemsKey = JSON.stringify(quantities)
     const profileKey = profileImage || ''
     return `${itemsKey}-${profileKey}`
   }, [quantities, profileImage])
 
-  // Restore Story1 image from sessionStorage if content hash matches
+  const story1Enabled = profileImage !== null && purchasedItems.length > 0
+  const story2Enabled = profileImage !== null && valuation.length > 0
+  const story3Enabled = profileImage !== null && purchasedItems.length > 0 && !isTransitioning
+
+  const { flattenedImage: story1Image } = useImageGeneration(
+    story1Ref,
+    {
+      purchasedItemsCount: purchasedItems.length,
+      storyIndex: 1,
+      contentHash: contentHash1,
+      generateDelay: 1000,
+      enabled: story1Enabled,
+    }
+  )
+
+  const { flattenedImage: story2Image } = useImageGeneration(
+    story2Ref,
+    {
+      storyIndex: 2,
+      contentHash: contentHash2,
+      generateDelay: 1500,
+      enabled: story2Enabled,
+    }
+  )
+
+  const { flattenedImage: story3Image } = useImageGeneration(
+    story3Ref,
+    {
+      purchasedItemsCount: purchasedItems.length,
+      storyIndex: 3,
+      contentHash: contentHash3,
+      generateDelay: 3000,
+      enabled: story3Enabled && !!story1Image && !!story2Image,
+    }
+  )
+
   useEffect(() => {
-    if (typeof window !== 'undefined' && profileImage !== null && Object.keys(quantities).length > 0 && purchasedItems.length > 0) {
-      try {
-        const storedImage = window.sessionStorage.getItem('facecard_story1_image')
-        const storedHash = window.sessionStorage.getItem('facecard_story1_hash')
-        
-        if (storedImage && storedHash && storedHash === contentHash1 && !flattenedImage) {
-          console.log('Story1: Restoring image from sessionStorage (content hash matches)')
-          setFlattenedImage(storedImage)
-          contentHashRef.current = contentHash1
-        } else if (storedHash && storedHash !== contentHash1) {
-          // Content has changed, clear old stored image
-          console.log('Story1: Content hash changed, clearing stored image')
-          window.sessionStorage.removeItem('facecard_story1_image')
-          window.sessionStorage.removeItem('facecard_story1_hash')
-        }
-      } catch (err) {
-        console.warn('Unable to read Story1 from sessionStorage:', err)
+    let progress = 0
+    if (story1Image) progress += 33
+    if (story2Image) progress += 33
+    if (story3Image) progress += 34
+    setLoadingProgress(progress)
+    setAllImagesReady(!!(story1Image && story2Image && story3Image))
+  }, [story1Image, story2Image, story3Image])
+
+  const showFlattenedImages = allImagesReady && !isIOS
+
+  const downloadAsImage = async () => {
+    const images = [story1Image, story2Image, story3Image]
+    const imageToDownload = images[activeIndex] || null
+
+    if (isIOS && mobileCardRef.current) {
+      if (isPreparingExport) {
+        alert('Preparing image. Please try again in a moment.')
+        return
       }
-    }
-  }, [profileImage, quantities, contentHash1, purchasedItems.length, flattenedImage])
 
-  // Export dimensions
-  const FRAME_W = 1000 
-  const FRAME_H = 1840 // Scaled proportionally to maintain 9:16 aspect ratio (880 * 16/9)
-  const EXPORT_SCALE = 1 // 1x = 1000x1840 PNG
-
-  // Safer scale helper, especially for iOS / mobile when lots of items
-  const getSafeScale = () => {
-    if (typeof window === 'undefined') return 1
-
-    const deviceScale = window.devicePixelRatio || 1
-    const isSmallScreen = window.innerWidth <= 768
-    const ua = navigator.userAgent || ''
-    const isIOS = /iPad|iPhone|iPod/.test(ua)
-
-    // Start from clamped device scale
-    let scale = Math.min(deviceScale, 2)
-
-    // On iOS / small screens, be more conservative
-    if (isIOS || isSmallScreen) {
-      scale = Math.min(scale, 1.2)
-    }
-
-    // If a ton of items, clamp harder (reduce memory)
-    if (purchasedItems.length > 12) {
-      scale = Math.min(scale, 1)
-    }
-
-    // Final fallback
-    if (!Number.isFinite(scale) || scale <= 0) {
-      scale = 1
-    }
-
-    return scale
-  }
-
-  // Helper function to wait for all images to load (mobile-safe)
-  const waitForImages = (root: HTMLElement): Promise<void> => {
-    const images = Array.from(root.querySelectorAll('img'))
-    return Promise.all(
-      images.map((img) => {
-        // If image is already loaded, resolve immediately
-        if (img.complete && img.naturalWidth > 0) {
-          return Promise.resolve()
-        }
-        // Otherwise, wait for load or error
-        return new Promise<void>((resolve) => {
-          const timeout = setTimeout(() => {
-            console.warn('Image load timeout:', img.src)
-            resolve()
-          }, 10000) // 10 second timeout
-          img.onload = () => {
-            clearTimeout(timeout)
-            resolve()
-          }
-          img.onerror = () => {
-            console.error('Image load error:', img.src)
-            clearTimeout(timeout)
-            resolve() // Resolve even on error to not block the process
-          }
-        })
-      })
-    ).then(() => undefined)
-  }
-
-  // Helper to wait for browser to finish all paint/layout operations
-  const waitForBrowserPaint = (): Promise<void> => {
-    return new Promise((resolve) => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setTimeout(() => resolve(), 100)
-          })
-        })
-      })
-    })
-  }
-  
-  // Calculate scale for license card to match receipt width
-  // Receipt width: clamp(280px, 90vw, 400px) * 0.6 scale = max 240px rendered
-  // License card base width: 663.57px
-  // Scale needed: 240 / 663.57 ≈ 0.362
-  const LICENSE_CARD_SCALE = (400 * 0.6) / 663.57 // Scale to match receipt max width
-
-  // Generate flattened image when content is ready
-  useEffect(() => {
-    const generateFlattenedImage = async () => {
-      if (!checkoutRef.current || isGenerating) return
-      
-      setIsGenerating(true)
-      
-      const node = checkoutRef.current
-
-      try {
-        // Force layout recalculation to ensure all elements are fully rendered
-        node.getBoundingClientRect()
-
-        // Clone the node for off-screen rendering to avoid visual glitches
-        const clonedNode = node.cloneNode(true) as HTMLElement
-        clonedNode.setAttribute('data-cloned-story', '1')
-        clonedNode.style.position = 'absolute'
-        clonedNode.style.left = '-9999px'
-        clonedNode.style.top = '0'
-        clonedNode.style.opacity = '1'
-        clonedNode.style.visibility = 'visible'
-        clonedNode.style.display = 'flex'
-        clonedNode.style.zIndex = '-1'
-        document.body.appendChild(clonedNode)
-        
-        console.log('Starting Story1 image generation...', {
-          nodeExists: !!node,
-          clonedNodeExists: !!clonedNode,
-          imagesCount: clonedNode.querySelectorAll('img').length
-        })
-        
-        // Wait for all images to load in the cloned node
-        const images = clonedNode.querySelectorAll('img')
-        console.log(`Waiting for ${images.length} images to load...`)
-        await waitForImages(clonedNode)
-
-        // Wait for browser to complete all paint/layout operations
-        await waitForBrowserPaint()
-
-        // Extra delay for mobile to ensure full paint/render
-        await new Promise(resolve => setTimeout(resolve, 800))
-
-        console.log('Importing dom-to-image-more...')
-        // @ts-ignore - dom-to-image-more doesn't have type definitions
-        const domtoimageModule = await import('dom-to-image-more')
-        const domtoimage = domtoimageModule.default || domtoimageModule
-        
-        const scale = getSafeScale()
-        const exportWidth = FRAME_W * scale
-        const exportHeight = FRAME_H * scale
-        
-        console.log('Rendering to PNG...', { scale, exportWidth, exportHeight })
-        // Render at high resolution using the cloned node
-        const dataUrl = await domtoimage.toPng(clonedNode, {
-          width: exportWidth,
-          height: exportHeight,
-          style: {
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            width: `${exportWidth}px`,
-            height: `${exportHeight}px`,
-          },
-          quality: 0.92,
-          cacheBust: true,
-          bgcolor: '#ffffff',
-        })
-        
-        // Remove the cloned node
-        document.body.removeChild(clonedNode)
-        
-        console.log('Export completed! Data URL length:', dataUrl.length)
-        setFlattenedImage(dataUrl)
-        contentHashRef.current = contentHash1
-        setLoadingProgress(33) // Story 1 complete
-        
-        // Store in sessionStorage for persistence across navigation
-        if (typeof window !== 'undefined') {
+      const dataUrl = iosExportUrl || await buildIosExport()
+      if (dataUrl) {
+        const filename = `facecard-story${activeIndex + 1}-${FRAME_DIMENSIONS.WIDTH}x${FRAME_DIMENSIONS.HEIGHT}.png`
+        const dataUrlToBlob = (dataUrlValue: string): Blob | null => {
+          if (!dataUrlValue.startsWith('data:')) return null
           try {
-            window.sessionStorage.setItem('facecard_story1_image', dataUrl)
-            window.sessionStorage.setItem('facecard_story1_hash', contentHash1)
-            console.log('Story1: Stored image in sessionStorage')
-          } catch (err) {
-            console.error('Story1: sessionStorage quota exceeded or error:', err)
-            // Clear old story images and try again
-            try {
-              console.log('Story1: Attempting to clear old images and retry...')
-              window.sessionStorage.removeItem('facecard_story2_image')
-              window.sessionStorage.removeItem('facecard_story2_hash')
-              window.sessionStorage.removeItem('facecard_story3_image')
-              window.sessionStorage.removeItem('facecard_story3_hash')
-              window.sessionStorage.setItem('facecard_story1_image', dataUrl)
-              window.sessionStorage.setItem('facecard_story1_hash', contentHash1)
-              console.log('Story1: Successfully stored after clearing old images')
-            } catch (retryErr) {
-              console.error('Story1: Still unable to store after cleanup:', retryErr)
+            const [header, data] = dataUrlValue.split(',')
+            const mimeMatch = header.match(/data:(.*?);base64/)
+            const mime = mimeMatch ? mimeMatch[1] : 'image/png'
+            const byteString = atob(data)
+            const arrayBuffer = new ArrayBuffer(byteString.length)
+            const intArray = new Uint8Array(arrayBuffer)
+            for (let i = 0; i < byteString.length; i += 1) {
+              intArray[i] = byteString.charCodeAt(i)
             }
-          }
-        }
-      } catch (err) {
-        console.error('Error generating flattened image:', err)
-        alert('Export failed – check the console for the error.')
-      } finally {
-        // Clean up any cloned nodes that might still exist
-        const clonedNodes = document.body.querySelectorAll('[data-cloned-story="1"]')
-        console.log(`Story1: Cleaning up ${clonedNodes.length} cloned nodes`)
-        clonedNodes.forEach(clone => {
-          try {
-            document.body.removeChild(clone)
-          } catch (e) {
-            console.warn('Story1: Failed to remove cloned node:', e)
-          }
-        })
-
-        // Also clean up any orphaned clones from other stories
-        const allClones = document.body.querySelectorAll('[data-cloned-story]')
-        if (allClones.length > 0) {
-          console.warn(`Story1: Found ${allClones.length} orphaned clones, cleaning up...`)
-          allClones.forEach(clone => {
-            try {
-              document.body.removeChild(clone)
-            } catch (e) {
-              // Ignore
-            }
-          })
-        }
-
-        setIsGenerating(false)
-      }
-    }
-
-    // Check if content has changed
-    const hasContentChanged = contentHashRef.current !== contentHash1 && contentHashRef.current !== ''
-
-    // Generate image when profile image and quantities are loaded
-    if (profileImage !== null && Object.keys(quantities).length > 0 && purchasedItems.length > 0) {
-      console.log('Story1 render check:', {
-        hasFlattenedImage: !!flattenedImage,
-        hasContentChanged,
-        contentHash: contentHash1,
-        storedHash: contentHashRef.current,
-        purchasedItemsCount: purchasedItems.length
-      })
-      
-      // If content changed, clear existing image and sessionStorage
-      if (hasContentChanged && flattenedImage) {
-        console.log('Story1: Content changed, clearing image and sessionStorage')
-        setFlattenedImage(null)
-        if (typeof window !== 'undefined') {
-          try {
-            window.sessionStorage.removeItem('facecard_story1_image')
-            window.sessionStorage.removeItem('facecard_story1_hash')
+            return new Blob([arrayBuffer], { type: mime })
           } catch (err) {
-            console.warn('Unable to clear Story1 from sessionStorage:', err)
+            console.warn('Unable to parse data URL:', err)
+            return null
           }
         }
-      }
-      
-      // Only generate if we don't have an image
-      if (!flattenedImage) {
-        console.log('Story1: Starting generation (no existing image)')
-        // Longer delay to ensure DOM is fully rendered and images are loaded
-        const timer = setTimeout(() => {
-          generateFlattenedImage()
-        }, 1000)
-        
-        return () => clearTimeout(timer)
-      } else {
-        console.log('Story1: Using existing flattened image')
-      }
-    } else {
-      console.log('Story1: Conditions not met for generation', {
-        hasProfileImage: profileImage !== null,
-        hasQuantities: Object.keys(quantities).length > 0,
-        purchasedItemsCount: purchasedItems.length
-      })
-    }
-  }, [profileImage, quantities, isGenerating, flattenedImage, purchasedItems.length, FRAME_W, FRAME_H, EXPORT_SCALE, contentHash1])
 
-  // Generate flattened image for Story2 when content is ready
-  useEffect(() => {
-    const generateFlattenedImage2 = async () => {
-      if (!checkoutRef2.current || isGenerating2) return
-
-      setIsGenerating2(true)
-
-      const node = checkoutRef2.current
-
-      try {
-        // Force layout recalculation to ensure all elements are fully rendered
-        node.getBoundingClientRect()
-
-        // Clone the node off-screen so it's not inside the 3D carousel
-        const clonedNode = node.cloneNode(true) as HTMLElement
-        clonedNode.setAttribute('data-cloned-story', '2')
-        clonedNode.style.position = 'absolute'
-        clonedNode.style.left = '-9999px'
-        clonedNode.style.top = '0'
-        clonedNode.style.opacity = '1'
-        clonedNode.style.visibility = 'visible'
-        clonedNode.style.display = 'flex'
-        clonedNode.style.zIndex = '-1'
-        clonedNode.style.background = '#fff'
-        clonedNode.style.overflow = 'visible'
-
-        // Kill any blur / transition that came from carousel styles
-        clonedNode.style.filter = 'none'
-        clonedNode.style.transition = 'none'
-
-        // Also clear styles on the inner wrapper
-        const contentWrapper = clonedNode.querySelector(
-          '[data-checkout-content-2]'
-        ) as HTMLElement | null
-        if (contentWrapper) {
-          contentWrapper.style.filter = 'none'
-          contentWrapper.style.transition = 'none'
-          contentWrapper.style.overflow = 'visible'
-        }
-
-        document.body.appendChild(clonedNode)
-
-        await waitForImages(clonedNode)
-
-        // Wait for browser to complete all paint/layout operations
-        await waitForBrowserPaint()
-
-        // Extra delay for mobile to ensure full paint/render
-        await new Promise((resolve) => setTimeout(resolve, 800))
-
-        // @ts-ignore
-        const domtoimageModule = await import('dom-to-image-more')
-        const domtoimage = domtoimageModule.default || domtoimageModule
-
-        const scale = getSafeScale()
-        const exportWidth = FRAME_W * scale
-        const exportHeight = FRAME_H * scale
-
-        const dataUrl = await domtoimage.toPng(clonedNode, {
-          width: exportWidth,
-          height: exportHeight,
-          style: {
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            width: `${exportWidth}px`,
-            height: `${exportHeight}px`,
-          },
-          cacheBust: true,
-          bgcolor: '#ffffff',
-        })
-
-        document.body.removeChild(clonedNode)
-
-        console.log('Story2: Export completed! Data URL length:', dataUrl.length)
-        setFlattenedImage2(dataUrl)
-        contentHashRef2.current = contentHash2
-        setLoadingProgress(66) // Story 2 complete
-
-        // Store in sessionStorage for persistence
-        if (typeof window !== 'undefined') {
-          try {
-            window.sessionStorage.setItem('facecard_story2_image', dataUrl)
-            window.sessionStorage.setItem('facecard_story2_hash', contentHash2)
-            console.log('Story2: Stored image in sessionStorage')
-          } catch (err) {
-            console.error('Story2: sessionStorage quota exceeded or error:', err)
-            // Clear old story images and try again
-            try {
-              console.log('Story2: Attempting to clear old images and retry...')
-              window.sessionStorage.removeItem('facecard_story1_image')
-              window.sessionStorage.removeItem('facecard_story1_hash')
-              window.sessionStorage.removeItem('facecard_story3_image')
-              window.sessionStorage.removeItem('facecard_story3_hash')
-              window.sessionStorage.setItem('facecard_story2_image', dataUrl)
-              window.sessionStorage.setItem('facecard_story2_hash', contentHash2)
-              console.log('Story2: Successfully stored after clearing old images')
-            } catch (retryErr) {
-              console.error('Story2: Still unable to store after cleanup:', retryErr)
-            }
+        const blob = dataUrlToBlob(dataUrl)
+        if (blob && navigator.share) {
+          const file = new File([blob], filename, { type: blob.type || 'image/png' })
+          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'FaceCard Story',
+            })
+            return
           }
         }
-      } catch (err) {
-        console.error('Error generating Story2 flattened image:', err)
-      } finally {
-        const clones = document.body.querySelectorAll('[data-cloned-story="2"]')
-        console.log(`Story2: Cleaning up ${clones.length} cloned nodes`)
-        clones.forEach((clone) => {
-          try {
-            document.body.removeChild(clone)
-          } catch (e) {
-            console.warn('Story2: Failed to remove cloned node:', e)
-          }
-        })
 
-        // Clean up any orphaned clones
-        const allClones = document.body.querySelectorAll('[data-cloned-story]')
-        if (allClones.length > 0) {
-          console.warn(`Story2: Found ${allClones.length} orphaned clones, cleaning up...`)
-          allClones.forEach(clone => {
-            try {
-              document.body.removeChild(clone)
-            } catch (e) {
-              // Ignore
-            }
-          })
+        const newTab = window.open()
+        if (newTab) {
+          newTab.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;" />`)
         }
-
-        setIsGenerating2(false)
+        return
       }
     }
 
-    const hasContentChanged =
-      contentHashRef2.current !== contentHash2 && contentHashRef2.current !== ''
-
-    // Generate Story2 when data is ready (not dependent on activeStoryIndex)
-    if (profileImage !== null && valuation.length > 0) {
-      // Only clear if actual source data changed (not just content hash)
-      if (hasContentChanged && flattenedImage2) {
-        console.log('[Story2] Source data changed, clearing image for regeneration')
-        setFlattenedImage2(null)
-      }
-
-      // Only generate if we don't have an image AND we're not already generating
-      if (!flattenedImage2 && !isGenerating2 && !isGenerating) {
-        console.log('[Story2] Scheduling ONE-TIME generation in 1500ms')
-        const timer = setTimeout(() => {
-          // Double-check we still need to generate (prevent race conditions)
-          if (!flattenedImage2 && !isGenerating2) {
-            console.log('[Story2] Starting generation now')
-            console.log('[Story2] DOM Check - profileImage exists:', !!profileImage)
-            console.log('[Story2] DOM Check - valuation items:', valuation.length)
-            console.log('[Story2] DOM Check - ref exists:', !!checkoutRef2.current)
-            generateFlattenedImage2()
-          } else {
-            console.log('[Story2] Skipping generation - already have image or currently generating')
-          }
-        }, 1500)
-
-        return () => clearTimeout(timer)
-      } else {
-        console.log('[Story2] NOT generating:', {
-          hasFlattenedImage: !!flattenedImage2,
-          isGenerating1: isGenerating,
-          isGenerating2: isGenerating2
-        })
-      }
-    }
-  }, [
-    profileImage,
-    valuation,
-    isGenerating2,
-    flattenedImage2,
-    FRAME_W,
-    FRAME_H,
-    EXPORT_SCALE,
-    contentHash2,
-    isTransitioning,
-  ])
-
-  // Restore Story3 image from sessionStorage if content hash matches
-  useEffect(() => {
-    if (typeof window !== 'undefined' && profileImage !== null && Object.keys(quantities).length > 0 && purchasedItems.length > 0) {
-      try {
-        const storedImage = window.sessionStorage.getItem('facecard_story3_image')
-        const storedHash = window.sessionStorage.getItem('facecard_story3_hash')
-        
-        if (storedImage && storedHash && storedHash === contentHash3 && !flattenedImage3) {
-          console.log('Story3: Restoring image from sessionStorage (content hash matches)')
-          setFlattenedImage3(storedImage)
-          contentHashRef3.current = contentHash3
-        } else if (storedHash && storedHash !== contentHash3) {
-          // Content has changed, clear old stored image
-          console.log('Story3: Content hash changed, clearing stored image')
-          window.sessionStorage.removeItem('facecard_story3_image')
-          window.sessionStorage.removeItem('facecard_story3_hash')
-        }
-      } catch (err) {
-        console.warn('Unable to read Story3 from sessionStorage:', err)
-      }
-    }
-  }, [profileImage, quantities, contentHash3, purchasedItems.length, flattenedImage3])
-
-  // Generate flattened image for Story3 when content is ready
-  useEffect(() => {
-    const generateFlattenedImage3 = async () => {
-      if (!checkoutRef3.current || isGenerating3) return
-
-      setIsGenerating3(true)
-
-      const node = checkoutRef3.current
-
-      try {
-        // Force layout recalculation to ensure all elements are fully rendered
-        node.getBoundingClientRect()
-
-        // Clone the node for off-screen rendering to avoid visual glitches
-        const clonedNode = node.cloneNode(true) as HTMLElement
-        clonedNode.setAttribute('data-cloned-story', '3')
-        clonedNode.style.position = 'absolute'
-        clonedNode.style.left = '-9999px'
-        clonedNode.style.top = '0'
-        clonedNode.style.opacity = '1'
-        clonedNode.style.visibility = 'visible'
-        clonedNode.style.display = 'flex'
-        clonedNode.style.zIndex = '-1'
-        clonedNode.style.background = '#fff'
-        clonedNode.style.overflow = 'visible'
-
-        // 🔑 Kill any blur/transition that came from carousel styles
-        clonedNode.style.filter = 'none'
-        clonedNode.style.transition = 'none'
-
-        // Make sure the inner content wrapper also has no blur
-        const contentWrapper = clonedNode.querySelector('[data-checkout-content-3]') as HTMLElement | null
-        if (contentWrapper) {
-          contentWrapper.style.filter = 'none'
-          contentWrapper.style.transition = 'none'
-          contentWrapper.style.overflow = 'visible'
-        }
-
-        // Ensure absolutely-positioned children don't clip
-        const allDivs = clonedNode.querySelectorAll('div') as NodeListOf<HTMLElement>
-        allDivs.forEach((div) => {
-          const style = window.getComputedStyle(div)
-          if (style.position === 'absolute') {
-            div.style.overflow = 'visible'
-          }
-        })
-
-        document.body.appendChild(clonedNode)
-
-        console.log('Starting Story3 image generation...', {
-          nodeExists: !!node,
-          clonedNodeExists: !!clonedNode,
-          imagesCount: clonedNode.querySelectorAll('img').length,
-        })
-
-        await waitForImages(clonedNode)
-
-        // Wait for browser to complete all paint/layout operations
-        await waitForBrowserPaint()
-
-        // Extra delay for mobile to ensure full paint/render
-        await new Promise((resolve) => setTimeout(resolve, 800))
-
-        console.log('Importing dom-to-image-more for Story3...')
-        // @ts-ignore - dom-to-image-more doesn't have type definitions
-        const domtoimageModule = await import('dom-to-image-more')
-        const domtoimage = domtoimageModule.default || domtoimageModule
-
-        const scale = getSafeScale()
-        const exportWidth = FRAME_W * scale
-        const exportHeight = FRAME_H * scale
-
-        console.log('Rendering Story3 to PNG...', { scale, exportWidth, exportHeight })
-        const dataUrl = await domtoimage.toPng(clonedNode, {
-          width: exportWidth,
-          height: exportHeight,
-          style: {
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            width: `${exportWidth}px`,
-            height: `${exportHeight}px`,
-          },
-          quality: 0.92,
-          cacheBust: true,
-          bgcolor: '#ffffff',
-        })
-
-        document.body.removeChild(clonedNode)
-
-        console.log('Story3 export completed! Data URL length:', dataUrl.length)
-        setFlattenedImage3(dataUrl)
-        contentHashRef3.current = contentHash3
-        setLoadingProgress(100) // Story 3 complete
-
-        if (typeof window !== 'undefined') {
-          try {
-            window.sessionStorage.setItem('facecard_story3_image', dataUrl)
-            window.sessionStorage.setItem('facecard_story3_hash', contentHash3)
-            console.log('Story3: Stored image in sessionStorage')
-          } catch (err) {
-            console.warn('Unable to store Story3 image in sessionStorage:', err)
-          }
-        }
-      } catch (err) {
-        console.error('Error generating Story3 flattened image:', err)
-      } finally {
-        const clonedNodes = document.body.querySelectorAll('[data-cloned-story="3"]')
-        console.log(`Story3: Cleaning up ${clonedNodes.length} cloned nodes`)
-        clonedNodes.forEach((clone) => {
-          try {
-            document.body.removeChild(clone)
-          } catch (e) {
-            console.warn('Story3: Failed to remove cloned node:', e)
-          }
-        })
-
-        // Clean up any orphaned clones
-        const allClones = document.body.querySelectorAll('[data-cloned-story]')
-        if (allClones.length > 0) {
-          console.warn(`Story3: Found ${allClones.length} orphaned clones, cleaning up...`)
-          allClones.forEach(clone => {
-            try {
-              document.body.removeChild(clone)
-            } catch (e) {
-              // Ignore
-            }
-          })
-        }
-
-        setIsGenerating3(false)
-      }
-    }
-
-    // Check if content has changed
-    const hasContentChanged =
-      contentHashRef3.current !== contentHash3 && contentHashRef3.current !== ''
-
-    // Generate Story3 when data is ready (not dependent on activeStoryIndex)
-    if (
-      profileImage !== null &&
-      Object.keys(quantities).length > 0 &&
-      purchasedItems.length > 0
-    ) {
-      console.log('Story3 render check:', {
-        hasFlattenedImage: !!flattenedImage3,
-        hasContentChanged,
-        contentHash: contentHash3,
-        storedHash: contentHashRef3.current,
-        purchasedItemsCount: purchasedItems.length,
-        isGenerating: isGenerating3,
-        hasRef: !!checkoutRef3.current,
-      })
-
-      if (hasContentChanged && flattenedImage3) {
-        console.log('Story3: Content changed, clearing image and sessionStorage')
-        setFlattenedImage3(null)
-        if (typeof window !== 'undefined') {
-          try {
-            window.sessionStorage.removeItem('facecard_story3_image')
-            window.sessionStorage.removeItem('facecard_story3_hash')
-          } catch (err) {
-            console.warn('Unable to clear Story3 from sessionStorage:', err)
-          }
-        }
-      }
-
-      if (!flattenedImage3 && !isGenerating3 && !isTransitioning && !isGenerating2) {
-        console.log('[Story3] Scheduling generation in 3000ms')
-        // Wait for Story1 and Story2 to complete first
-        const timer = setTimeout(() => {
-          console.log('[Story3] Starting generation now')
-          console.log('[Story3] DOM Check - profileImage exists:', !!profileImage)
-          console.log('[Story3] DOM Check - purchased items:', purchasedItems.length)
-          console.log('[Story3] DOM Check - quantities:', Object.keys(quantities).length)
-          console.log('[Story3] DOM Check - ref exists:', !!checkoutRef3.current)
-          generateFlattenedImage3()
-        }, 3000)
-
-        return () => {
-          console.log('[Story3] Cleaning up timer')
-          clearTimeout(timer)
-        }
-      } else {
-        console.log('[Story3] NOT generating:', {
-          hasFlattenedImage: !!flattenedImage3,
-          isGenerating: isGenerating3,
-          isGenerating2,
-          isTransitioning
-        })
-      }
-    } else {
-      console.log('Story3: Conditions not met for generation', {
-        hasProfileImage: profileImage !== null,
-        hasQuantities: Object.keys(quantities).length > 0,
-        purchasedItemsCount: purchasedItems.length,
-      })
-    }
-  }, [
-    profileImage,
-    quantities,
-    purchasedItems.length,
-    isGenerating3,
-    isGenerating2,
-    flattenedImage3,
-    FRAME_W,
-    FRAME_H,
-    EXPORT_SCALE,
-    contentHash3,
-    isTransitioning,
-  ])
-
-  // Check if all images are ready
-  useEffect(() => {
-    if (flattenedImage && flattenedImage2 && flattenedImage3 && !allImagesReady) {
-      console.log('🎉 All images ready! Showing carousel...')
-      setAllImagesReady(true)
-    }
-  }, [flattenedImage, flattenedImage2, flattenedImage3, allImagesReady])
-
-  const downloadAsImage = () => {
-    // Get the current active story's image
-    let imageToDownload: string | null = null
-    if (activeStoryIndex === 0) {
-      imageToDownload = flattenedImage
-    } else if (activeStoryIndex === 1) {
-      imageToDownload = flattenedImage2
-    } else if (activeStoryIndex === 2) {
-      imageToDownload = flattenedImage3
-    }
-    
     if (imageToDownload) {
-      const link = document.createElement('a')
-      link.download = `facecard-story${activeStoryIndex + 1}-1000x1840.png`
-      link.href = imageToDownload
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      const filename = `facecard-story${activeIndex + 1}-${FRAME_DIMENSIONS.WIDTH}x${FRAME_DIMENSIONS.HEIGHT}.png`
+      const dataUrlToBlob = (dataUrl: string): Blob | null => {
+        if (!dataUrl.startsWith('data:')) return null
+        try {
+          const [header, data] = dataUrl.split(',')
+          const mimeMatch = header.match(/data:(.*?);base64/)
+          const mime = mimeMatch ? mimeMatch[1] : 'image/png'
+          const byteString = atob(data)
+          const arrayBuffer = new ArrayBuffer(byteString.length)
+          const intArray = new Uint8Array(arrayBuffer)
+          for (let i = 0; i < byteString.length; i += 1) {
+            intArray[i] = byteString.charCodeAt(i)
+          }
+          return new Blob([arrayBuffer], { type: mime })
+        } catch (err) {
+          console.warn('Unable to parse data URL:', err)
+          return null
+        }
+      }
+
+      const tryShare = async () => {
+        if (!navigator.share) return false
+
+        try {
+          let blob: Blob | null = null
+          if (imageToDownload.startsWith('data:')) {
+            blob = dataUrlToBlob(imageToDownload)
+          } else {
+            const response = await fetch(imageToDownload)
+            blob = await response.blob()
+          }
+
+          if (!blob) return false
+
+          const file = new File([blob], filename, { type: blob.type || 'image/png' })
+
+          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'FaceCard Story',
+            })
+            return true
+          }
+        } catch (err) {
+          console.warn('Unable to share image:', err)
+        }
+
+        return false
+      }
+
+      tryShare().then((shared) => {
+        if (shared) return
+
+        if (imageToDownload.startsWith('data:')) {
+          const newTab = window.open()
+          if (newTab) {
+            newTab.document.write(`<img src="${imageToDownload}" style="width:100%;height:auto;" />`)
+          }
+          return
+        }
+
+        const link = document.createElement('a')
+        link.download = filename
+        link.href = imageToDownload
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      })
     } else {
       alert('Image is still generating. Please wait a moment.')
     }
@@ -1033,120 +495,27 @@ export default function CheckoutPage() {
       style={{
         width: '100vw',
         height: '100vh',
-        backgroundColor: '#ffffff',
+        backgroundColor: COLORS.WHITE,
         padding: 0,
         margin: 0,
         position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {/* Loading Screen - shown until all images are generated */}
-      {!allImagesReady && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: '#ffffff',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 9999,
-            gap: '24px',
-          }}
-        >
-          <div style={{
-            fontSize: 'clamp(18px, 5vw, 24px)',
-            fontWeight: '600',
-            color: '#1d1d1f',
-            marginBottom: '16px',
-          }}>
-            Preparing your stories...
-          </div>
-
-          {/* Progress bar */}
-          <div style={{
-            width: 'clamp(200px, 60vw, 300px)',
-            height: '8px',
-            backgroundColor: '#e5e5e5',
-            borderRadius: '4px',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              width: `${loadingProgress}%`,
-              height: '100%',
-              backgroundColor: '#0071e3',
-              transition: 'width 0.5s ease',
-            }} />
-          </div>
-
-          <div style={{
-            fontSize: 'clamp(14px, 4vw, 16px)',
-            color: '#666',
-          }}>
-            {loadingProgress}% complete
-          </div>
-        </div>
+      {!allImagesReady && !isIOS && (
+        <LoadingScreen progress={loadingProgress} />
       )}
 
-      {/* Back to shop button */}
-      <button
-        onClick={() => router.push('/shop')}
-        style={{
-          position: 'fixed',
-          top: 'clamp(12px, 3vw, 16px)',
-          left: 'clamp(12px, 3vw, 16px)',
-          border: 'none',
-          background: 'none',
-          padding: '8px',
-          margin: 0,
-          fontSize: 'clamp(13px, 3.5vw, 14px)',
-          color: '#6e6e73',
-          cursor: 'pointer',
-          textDecoration: 'none',
-          zIndex: 200,
-          minHeight: '44px',
-          minWidth: '44px',
-          touchAction: 'manipulation',
-        }}
-      >
-        ← Back to Shop
-      </button>
+      {isIOS && !assetsReady && (
+        <LoadingScreen progress={loadingProgress} />
+      )}
 
-      {/* Download button */}
-      <button
-        onClick={downloadAsImage}
-        className="download-button"
-        style={{
-          position: 'fixed',
-          top: 'clamp(12px, 3vw, 16px)',
-          right: 'clamp(12px, 3vw, 20px)',
-          padding: '12px 24px',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          fontFamily: 'Arial, Helvetica, sans-serif',
-          color: '#FFFFFF',
-          background: 'linear-gradient(to bottom, #0066CC 0%, #0088FF 50%, #0066CC 100%)',
-          border: '2px solid #004499',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          zIndex: 200,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.2)',
-          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-          minHeight: '44px',
-          touchAction: 'manipulation',
-        }}
-      >
-        DOWNLOAD
-      </button>
+      <BackButton onClick={() => router.push('/shop')} label="← Back to Shop" />
 
-      {/* Add floating animation styles */}
-      <style dangerouslySetInnerHTML={{ __html: floatingAnimation }} />
-      
-      {/* Mobile-specific styles */}
+      <DownloadButton onClick={downloadAsImage} label="DOWNLOAD" />
+
+      <style dangerouslySetInnerHTML={{ __html: ANIMATIONS.FLOAT }} />
+
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .download-button {
@@ -1156,24 +525,23 @@ export default function CheckoutPage() {
             left: 50% !important;
             transform: translateX(-50%) !important;
           }
-          
+
           .checkout-title {
             top: calc(clamp(60px, 8vw, 80px) + 30px) !important;
             transform: translateX(-50%) scale(0.9) !important;
           }
+
         }
-        
-        /* Improve image rendering quality for scaled elements - use smooth rendering for photos */
+
         [data-checkout-content-2] img {
           image-rendering: -webkit-optimize-contrast;
           image-rendering: auto;
           -webkit-backface-visibility: hidden;
           backface-visibility: hidden;
-          transform: translateZ(0); /* Force GPU acceleration for better quality */
+          transform: translateZ(0);
         }
       ` }} />
 
-      {/* Title - Always visible on webpage, not in export */}
       <h1
         className="checkout-title"
         style={{
@@ -1181,1025 +549,196 @@ export default function CheckoutPage() {
           top: 'clamp(60px, 8vw, 80px)',
           left: '50%',
           transform: 'translateX(-50%)',
-          fontSize: 'clamp(20px, 5vw, 32px)',
-          fontWeight: 900,
+          fontSize: TYPOGRAPHY.TITLE_SIZE,
+          fontWeight: TYPOGRAPHY.EXTRA_BOLD,
           color: '#000000',
           textAlign: 'center',
           textTransform: 'uppercase',
-          letterSpacing: '2px',
+          letterSpacing: TYPOGRAPHY.TITLE_SPACING,
           margin: 0,
           padding: 0,
-          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontFamily: TYPOGRAPHY.ARIAL,
           whiteSpace: 'nowrap',
           zIndex: 50,
           pointerEvents: 'none',
           backgroundColor: 'transparent',
-          lineHeight: 1,
+          lineHeight: TYPOGRAPHY.TIGHT_LINE_HEIGHT,
           height: 'auto',
         }}
       >
         SHOW THE WORLD YOUR HAUL
       </h1>
 
-      {/* Carousel Container */}
-      <div
-        ref={carouselRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        style={{
-          position: 'absolute',
-          top: -400,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          width: '100%',
-          height: '100%',
-          perspective: '1200px',
-          perspectiveOrigin: 'center center',
-          overflow: 'visible',
-          backgroundColor: 'transparent',
-          zIndex: 10,
-          paddingTop: '500px',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* Story1 carousel card */}
-        <div
-          data-story-container="1"
-          style={{
-            position: 'absolute',
-            display: 'flex',
-            transformOrigin: 'center center',
-            justifyContent: 'center',
-            alignItems: 'center',
-            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-            backgroundColor: 'transparent',
-            ...(() => {
-              const transform = getCardTransform(0)
-              return {
-                transform: `translateX(${transform.translateX}vw) translateY(${transform.translateY}px) translateZ(0) rotateY(${transform.rotationY}deg) scale(${transform.scale})`,
-                zIndex: transform.zIndex,
-                pointerEvents: transform.opacity === 1 ? 'auto' : 'none',
-              }
-            })(),
-          }}
-        >
-        <div
-          style={{
-            transform: 'scale(0.3)', // shrink the 1000x1840 card on screen (50px smaller)
-            transformOrigin: 'top center',
-            backgroundColor: 'transparent',
-          }}
-        >
-        {/* Floating animation wrapper - only animates when card is in center */}
-        <div
-          style={{
-            animation: (() => {
-              const transform = getCardTransform(0)
-              return transform.isCenter ? 'float 3s ease-in-out infinite' : 'none'
-            })(),
-          }}
-        >
-        {/* HTML content for rendering - used to generate flattened image */}
-        {/* Keep HTML canvas in DOM (hidden when image is shown) for image generation */}
-        {/* Inner wrapper for visual styles - opacity/blur applied here, not on outer wrapper */}
-        <div
-          ref={checkoutRef}
-          data-checkout-content
-          style={{
-            position: 'relative',
-            width: `${FRAME_W}px`,
-            height: `${FRAME_H}px`,
-            background: '#fff',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-            overflow: 'visible',
-            display: allImagesReady ? 'none' : 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            ...(() => {
-              const transform = getCardTransform(0)
-              return {
-                opacity: transform.opacity,
-                filter: `blur(${transform.blur})`,
-                transition: 'opacity 0.6s ease, filter 0.6s ease',
-              }
-            })(),
-          }}
-        >
-          {/* Main Instagram Story Style Card */}
+      {isIOS ? (
+        <>
           <div
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
-              width: '100%',
-              height: '100%',
-              overflow: 'visible',
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              paddingTop: '140px',
+              zIndex: 20,
             }}
           >
-            <img
-              src="/InstagramStory/Story1.png"
-              alt="Face Card Shopping Spree"
-              crossOrigin="anonymous"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center',
-              }}
-            />
-            
-            {/* Face Card Baddie License - Positioned between black outline */}
             <div
               style={{
-                position: 'absolute',
-                borderRadius: '30.748px',
-                overflow: 'hidden',
-                width: '663.57px', // 363.57 + 300px bigger, keeping proportional
-                height: '383.3px', // Scaled proportionally (663.57 / 1.7306)
-                top: '45%',
-                left: '50%',
-                transform: 'translate(-50%, calc(-50% - 30px)) translateY(-120%)',
-                boxShadow: '1.698px 1.698px 8.444px 7.095px rgba(0, 0, 0, 0.17)',
-                zIndex: 10,
-                pointerEvents: 'none',
+                transform: `scale(${mobileScale})`,
+                transformOrigin: 'top center',
               }}
             >
-              <img
-                alt="Face Card Baddie License"
-                src={IDcardBG}
-                crossOrigin="anonymous"
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  zIndex: 0,
-                }}
-              />
-
-              {/* Profile picture slot */}
               <div
+                ref={mobileCardRef}
                 style={{
-                  position: 'absolute',
-                  top: '65.9px', // Scaled proportionally (18.63 * 663.57 / 213.57)
-                  left: '34.9px', // Scaled proportionally (11.25 * 663.57 / 213.57)
-                  width: '185.7px', // Scaled proportionally (59.76 * 663.57 / 213.57)
-                  height: '245.9px', // Scaled proportionally (79.11 * 663.57 / 213.57)
-                  borderRadius: '5.583px',
-                  border: '2.558px solid #4f4040',
-                  overflow: 'hidden',
-                  zIndex: 1,
-                }}
-              >
-                {profileImage ? (
-                  <img
-                    src={profileImage}
-                    alt="Captured face"
-                    crossOrigin="anonymous"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      background: 'linear-gradient(135deg, #d0d0d0, #f5f5f5)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '6px',
-                      color: '#555',
-                      textAlign: 'center',
-                      padding: '3px',
-                    }}
-                  >
-                    Your photo
-                  </div>
-                )}
-              </div>
-            </div>
-
-                  {/* Purchased Items in Shopping Cart */}
-                  {purchasedItems.length > 0 && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '40%',
-                        left: '53%',
-                        transform: 'translate(-50%, calc(5% - 70px))',
-                        width: '600px', // ~17.6% of 1080px - proportional to Story1
-                        height: '750px', // Proportional to Story1
-                        zIndex: 9,
-                        pointerEvents: 'none',
-                        overflow: 'visible',
-                      }}
-                    >
-                {purchasedItems.map((item, index) => {
-                  // Evenly distribute items across the cart area with slight randomization
-                  // Using item.id as seed for consistent positioning per item
-                  const seed = item.id.charCodeAt(0) + (item.id.length > 1 ? item.id.charCodeAt(1) : 0)
-                  const random1 = (seed * 9301 + 49297) % 233280 / 233280
-                  const random2 = ((seed * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
-                  const random3 = (((seed * 9301 + 49297) * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
-                  
-                  const totalItems = purchasedItems.length
-                  
-                  let baseLeft: number
-                  let baseTop: number
-                  
-                  // For 1-4 items: use more random positioning with good spacing
-                  if (totalItems >= 1 && totalItems <= 4) {
-                    // Define zones to ensure spacing - divide cart into quadrants/sections
-                    const zones = [
-                      // Top-left, top-right, bottom-left, bottom-right
-                      { left: 20, top: 25 },  // Zone 1: top-left
-                      { left: 80, top: 25 },  // Zone 2: top-right
-                      { left: 20, top: 75 },  // Zone 3: bottom-left
-                      { left: 80, top: 75 },  // Zone 4: bottom-right
-                    ]
-                    
-                    // Assign each item to a different zone to ensure spacing
-                    const zoneIndex = index % zones.length
-                    const zone = zones[zoneIndex]
-                    
-                    // Add significant randomness within each zone (±15% variation)
-                    const zoneRandom1 = ((seed * 7 + index * 13) % 233280) / 233280
-                    const zoneRandom2 = (((seed * 7 + index * 13) * 11) % 233280) / 233280
-                    
-                    baseLeft = zone.left + (zoneRandom1 - 0.5) * 30 // ±15% variation
-                    baseTop = zone.top + (zoneRandom2 - 0.5) * 30 // ±15% variation
-                  } else {
-                    // For 5+ items: use grid-based distribution with randomness
-                    const cols = Math.ceil(Math.sqrt(totalItems * 1.2))
-                    const rows = Math.ceil(totalItems / cols)
-                    
-                    const gridCol = index % cols
-                    const gridRow = Math.floor(index / cols)
-                    
-                    // Base positions spread across the cart area (10% to 90% horizontally, 15% to 85% vertically)
-                    const baseGridLeft = cols > 1 ? 10 + (gridCol / (cols - 1)) * 80 : 50
-                    const baseGridTop = rows > 1 ? 15 + (gridRow / (rows - 1)) * 70 : 50
-                    
-                    // Add randomness to the base grid position (up to 25% variation)
-                    baseLeft = baseGridLeft + (random1 - 0.5) * 25
-                    baseTop = baseGridTop + (random2 - 0.5) * 25
-                  }
-                  
-                  // Additional random offset for more variation (larger range for 1-4 items)
-                  const additionalRandom1 = ((seed * 17 + index * 23) % 233280) / 233280
-                  const additionalRandom2 = (((seed * 17 + index * 23) * 19) % 233280) / 233280
-                  const offsetRange = totalItems <= 4 ? 15 : 20 // More offset for fewer items
-                  const leftOffset = (additionalRandom1 - 0.5) * offsetRange
-                  const topOffset = (additionalRandom2 - 0.5) * offsetRange
-                  
-                  // Final positions with all randomization, clamped to stay within bounds
-                  const leftPercent = Math.max(10, Math.min(90, baseLeft + leftOffset))
-                  const topPercent = Math.max(15, Math.min(85, baseTop + topOffset))
-                  
-                  // Slight random rotation (-12 to 12 degrees for more variation)
-                  const rotation = (random3 * 24) - 12
-                  
-                  // Fixed size for all items - scaled 50x bigger (90px * 50 = 4500px)
-                  const baseSize = '300px'
-
-                  return (
-                    <div
-                      key={item.id}
-                      style={{
-                        position: 'absolute',
-                        left: `${leftPercent}%`,
-                        top: `${topPercent}%`,
-                        width: baseSize,
-                        height: baseSize,
-                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {item.image && (
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          crossOrigin="anonymous"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
-                          }}
-                        />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Display rendered image once generated - in same animated container */}
-        {flattenedImage && allImagesReady && (
-          <img
-            src={flattenedImage}
-            alt="FaceCard Haul Export"
-            style={{
-              width: `${FRAME_W}px`,
-              height: `${FRAME_H}px`,
-              objectFit: 'contain',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-            }}
-          />
-        )}
-        </div>
-        </div>
-        </div>
-
-        {/* Story2 carousel card */}
-        <div
-          data-story-container="2"
-          style={{
-            position: 'absolute',
-            display: 'flex',
-            transformOrigin: 'center center',
-            justifyContent: 'center',
-            alignItems: 'center',
-            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-            backgroundColor: 'transparent',
-            ...(() => {
-              const transform = getCardTransform(1)
-              return {
-                transform: `translateX(${transform.translateX}vw) translateY(${transform.translateY}px) translateZ(0) rotateY(${transform.rotationY}deg) scale(${transform.scale})`,
-                zIndex: transform.zIndex,
-                pointerEvents: transform.opacity === 1 ? 'auto' : 'none',
-              }
-            })(),
-          }}
-        >
-          <div
-            style={{
-              transform: 'scale(0.3)', // Same scale as Story1 (50px smaller)
-              transformOrigin: 'top center',
-            }}
-          >
-            {/* Floating animation wrapper - only animates when card is in center */}
-            <div
-              style={{
-                animation: (() => {
-                  const transform = getCardTransform(1)
-                  return transform.isCenter ? 'float 3s ease-in-out infinite' : 'none'
-                })(),
-              }}
-            >
-            {/* HTML content for Story2 rendering - used to generate flattened image */}
-            {/* Keep HTML canvas in DOM (hidden when image is shown) for image generation */}
-            {/* Inner wrapper for visual styles - opacity/blur applied here, not on outer wrapper */}
-            <div
-              ref={checkoutRef2}
-              data-checkout-content-2
-              style={{
-                position: 'relative',
-                width: `${FRAME_W}px`,
-                height: `${FRAME_H}px`,
-                background: '#fff',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-                overflow: 'visible',
-                display: allImagesReady ? 'none' : 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                ...(() => {
-                  const transform = getCardTransform(1)
-                  return {
-                    opacity: transform.opacity,
-                    filter: `blur(${transform.blur})`,
-                    transition: 'opacity 0.6s ease, filter 0.6s ease',
-                  }
-                })(),
-              }}
-            >
-              {/* Story2 background image */}
-              <img
-                src="/InstagramStory/Story2.png"
-                alt="Story 2 Background"
-                crossOrigin="anonymous"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center',
-                }}
-              />
-
-              {/* License Card above receipt on Story2 - centered when Story2 is active */}
-              {/* Separate transform wrapper from visual wrapper to fix Safari compositor issues */}
-              {profileImage && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    bottom: '1250px', // Position above receipt with gap (maintained after scaling)
-                    transform: `translate3d(-50%, 0, 0) scale(${LICENSE_CARD_SCALE * 2 + 200 / 663.57})`, // Use translate3d for better GPU acceleration
-                    transformOrigin: 'bottom center',
-                    zIndex: 1,
-                    opacity: 1,
-                    pointerEvents: 'none',
-                    willChange: 'transform', // Hint browser for better rendering
-                    backfaceVisibility: 'hidden', // Prevent rendering artifacts
-                  }}
-                >
-                  {/* Inner wrapper for visual styles - separated from transforms */}
-                  <div
-                    style={{
-                      borderRadius: '30.748px',
-                      overflow: 'hidden',
-                      width: '663.57px',
-                      height: '383.3px',
-                      boxShadow: '1.698px 1.698px 8.444px 7.095px rgba(0, 0, 0, 0.17)',
-                    }}
-                  >
-                    <img
-                      alt="Face Card Baddie License"
-                      src={IDcardBG}
-                      crossOrigin="anonymous"
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        zIndex: 0,
-                        imageRendering: 'auto', // Ensure crisp rendering
-                      }}
-                    />
-                    {/* Profile picture slot */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '65.9px',
-                        left: '34.9px',
-                        width: '185.7px',
-                        height: '245.9px',
-                        borderRadius: '5.583px',
-                        border: '2.558px solid #4f4040',
-                        overflow: 'hidden',
-                        zIndex: 1,
-                      }}
-                    >
-                      <img
-                        src={profileImage}
-                        alt="Captured face"
-                        crossOrigin="anonymous"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          imageRendering: 'auto', // Ensure crisp rendering
-                          transform: 'translateZ(0)', // Force GPU acceleration
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Receipt on top of Story2 - centered when Story2 is active */}
-              {/* Separate transform wrapper from visual wrapper to fix Safari compositor issues */}
-              {valuation.length > 0 && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    bottom: '-40px', // Adjusted down to maintain gap (compensates for ~300px receipt height increase from scaling)
-                    transform: 'translateX(-50%) scale(1.7)', // 20% bigger + 200px when active (0.72 + 200/400)
-                    transformOrigin: 'bottom center',
-                    zIndex: 1,
-                    opacity: 1,
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {/* Inner wrapper for visual styles - separated from transforms */}
-                  <div
-                    style={{
-                      width: '450px',
-                      maxWidth: '150vw',
-                      height: '700px',
-                      backgroundColor: '#ffffff',
-                      backgroundImage: 'url(/texture.webp)',
-                      backgroundSize: 'cover',
-                      backgroundRepeat: 'repeat',
-                      backgroundPosition: 'center',
-                      padding: 'clamp(20px, 5vw, 32px)',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04)',
-                      fontFamily: 'Monaco, "Courier New", monospace',
-                      fontSize: 'clamp(12px, 3vw, 14px)',
-                      lineHeight: '1.6',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      flexDirection: 'column',
-                    }}
-                  >
-                  <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                    <img
-                      src="/logo.png"
-                      alt="Logo"
-                      crossOrigin="anonymous"
-                      style={{
-                        maxWidth: 'clamp(150px, 40vw, 200px)',
-                        width: '100%',
-                        height: 'auto',
-                        marginBottom: '8px',
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
-                    <div style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', color: '#666' }}>
-                      {currentDate} {currentTime}
-                    </div>
-                  </div>
-                  
-                  <div style={{ borderTop: '1px dashed #ccc', paddingTop: '16px', marginBottom: '16px', width: '100%' }}>
-                    {valuation.map((item, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          marginBottom: '12px',
-                          fontSize: '13px',
-                        }}
-                      >
-                        <span style={{ flex: 1 }}>{item.name}</span>
-                        <span style={{ marginLeft: '16px', textAlign: 'right' }}>
-                          ${item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div style={{ borderTop: '1px dashed #ccc', paddingTop: '12px', marginTop: '16px', width: '100%' }}>
-                    {(() => {
-                      const { subtotal, tax, total } = calculateReceiptTotal()
-                      return (
-                        <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
-                            <span>Subtotal:</span>
-                            <span>${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '13px' }}>
-                            <span>"You Ate" Tax:</span>
-                            <span>${tax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #000', paddingTop: '8px', marginTop: '8px', fontSize: '16px', fontWeight: 'bold' }}>
-                            <span>TOTAL:</span>
-                            <span>${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                        </>
-                      )
-                    })()}
-                  </div>
-                  
-                  <div style={{ borderTop: '1px dashed #ccc', marginTop: '16px', marginBottom: '16px' }}></div>
-                  
-                  <div style={{ textAlign: 'center', fontSize: '12px', color: '#666' }}>
-                    <div style={{ marginBottom: '4px' }}>THANK YOU</div>
-                    <div style={{ marginBottom: '16px' }}>HAVE A NICE DAY!!!</div>
-                  </div>
-                  
-                  {/* Barcode */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '60px',
-                    overflow: 'hidden',
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      gap: '0',
-                      height: '50px',
-                    }}>
-                      {Array.from({ length: 90 }).map((_, index) => {
-                        const patterns = [
-                          2, 2, 3, 2, 4, 2, 3, 2, 3, 2, 2, 3, 2, 4, 2, 3, 2, 2, 3, 2,
-                          4, 2, 3, 2, 3, 2, 2, 3, 2, 4, 2, 3, 2, 2, 3, 2, 4, 2, 3, 2,
-                          3, 2, 2, 3, 2, 4, 2, 3, 2, 2, 3, 2, 4, 2, 3, 2, 3, 2, 2, 3,
-                          2, 4, 2, 3, 2, 2, 3, 2, 4, 2, 3, 2, 3, 2, 2, 3, 2, 4, 2, 3,
-                          2, 2, 3, 2, 4, 2, 3, 2, 3, 2
-                        ]
-                        const barWidth = patterns[index % patterns.length]
-                        const isBar = index % 2 === 0
-                        
-                        if (isBar) {
-                          return (
-                            <div
-                              key={index}
-                              style={{
-                                width: `${barWidth}px`,
-                                height: '50px',
-                                backgroundColor: '#000000',
-                                display: 'inline-block',
-                              }}
-                            />
-                          )
-                        } else {
-                          return (
-                            <div
-                              key={index}
-                              style={{
-                                width: `${barWidth}px`,
-                                height: '50px',
-                                backgroundColor: 'transparent',
-                                display: 'inline-block',
-                              }}
-                            />
-                          )
-                        }
-                      })}
-                    </div>
-                  </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Display rendered Story2 image once generated - in same animated container */}
-            {flattenedImage2 && allImagesReady && (
-              <img
-                src={flattenedImage2}
-                alt="FaceCard Story2 Export"
-                style={{
-                  width: `${FRAME_W}px`,
-                  height: `${FRAME_H}px`,
-                  objectFit: 'contain',
+                  position: 'relative',
+                  width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                  height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+                  background: '#fff',
                   boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-                }}
-              />
-            )}
-            </div>
-          </div>
-        </div>
-
-        {/* Story3 carousel card */}
-        <div
-          data-story-container="3"
-          style={{
-            position: 'absolute',
-            display: 'flex',
-            transformOrigin: 'center center',
-            justifyContent: 'center',
-            alignItems: 'center',
-            transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-            backgroundColor: 'transparent',
-            ...(() => {
-              const transform = getCardTransform(2)
-              return {
-                transform: `translateX(${transform.translateX}vw) translateY(${transform.translateY}px) translateZ(0) rotateY(${transform.rotationY}deg) scale(${transform.scale})`,
-                zIndex: transform.zIndex,
-                pointerEvents: transform.opacity === 1 ? 'auto' : 'none',
-              }
-            })(),
-          }}
-        >
-          <div
-            style={{
-              transform: 'scale(0.3)', // shrink the 1000x1840 card on screen (50px smaller)
-              transformOrigin: 'top center',
-            }}
-          >
-            {/* Floating animation wrapper - only animates when card is in center */}
-            <div
-              style={{
-                animation: (() => {
-                  const transform = getCardTransform(2)
-                  return transform.isCenter ? 'float 3s ease-in-out infinite' : 'none'
-                })(),
-              }}
-            >
-            {/* HTML content for Story3 rendering - used to generate flattened image */}
-            {/* Keep HTML canvas in DOM (hidden when image is shown) for image generation */}
-            {/* Inner wrapper for visual styles - opacity/blur applied here, not on outer wrapper */}
-            <div
-              ref={checkoutRef3}
-              data-checkout-content-3
-              style={{
-                position: 'relative',
-                width: `${FRAME_W}px`,
-                height: `${FRAME_H}px`,
-                background: '#fff',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-                overflow: 'visible',
-                display: allImagesReady ? 'none' : 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                ...(() => {
-                  const transform = getCardTransform(2)
-                  return {
-                    opacity: transform.opacity,
-                    filter: `blur(${transform.blur})`,
-                    transition: 'opacity 0.6s ease, filter 0.6s ease',
-                  }
-                })(),
-              }}
-            >
-              {/* Main Instagram Story Style Card */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
                   overflow: 'visible',
                 }}
               >
-                <img
-                  src="/InstagramStory/Story3.png"
-                  alt="Face Card Shopping Spree"
-                  crossOrigin="anonymous"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    objectPosition: 'center',
-                  }}
-                />
-            
-                {/* Purchased Items in Shopping Cart with Red Box */}
-                {purchasedItems.length > 0 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '40%',
-                      left: '53%',
-                      transform: 'translate(-50%, calc(5% - 70px))',
-                      width: '730px',
-                      height: '500px',
-                      zIndex: 9,
-                      pointerEvents: 'none',
-                      overflow: 'visible',
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    {purchasedItems.map((item, index) => {
-                      // Evenly distribute items across the cart area with slight randomization
-                      // Using item.id as seed for consistent positioning per item
-                      const seed = item.id.charCodeAt(0) + (item.id.length > 1 ? item.id.charCodeAt(1) : 0)
-                      const random1 = (seed * 9301 + 49297) % 233280 / 233280
-                      const random2 = ((seed * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
-                      const random3 = (((seed * 9301 + 49297) * 9301 + 49297) * 9301 + 49297) % 233280 / 233280
-                      
-                      const totalItems = purchasedItems.length
-                      
-                      let baseLeft: number
-                      let baseTop: number
-                      
-                      // For 1-4 items: use more random positioning with good spacing
-                      if (totalItems >= 1 && totalItems <= 4) {
-                        // Define zones to ensure spacing - divide cart into quadrants/sections
-                        const zones = [
-                          // Top-left, top-right, bottom-left, bottom-right
-                          { left: 20, top: 25 },  // Zone 1: top-left
-                          { left: 80, top: 25 },  // Zone 2: top-right
-                          { left: 20, top: 75 },  // Zone 3: bottom-left
-                          { left: 80, top: 75 },  // Zone 4: bottom-right
-                        ]
-                        
-                        // Assign each item to a different zone to ensure spacing
-                        const zoneIndex = index % zones.length
-                        const zone = zones[zoneIndex]
-                        
-                        // Add significant randomness within each zone (±15% variation)
-                        const zoneRandom1 = ((seed * 7 + index * 13) % 233280) / 233280
-                        const zoneRandom2 = (((seed * 7 + index * 13) * 11) % 233280) / 233280
-                        
-                        baseLeft = zone.left + (zoneRandom1 - 0.5) * 30 // ±15% variation
-                        baseTop = zone.top + (zoneRandom2 - 0.5) * 30 // ±15% variation
-                      } else {
-                        // For 5+ items: use grid-based distribution with randomness
-                        const cols = Math.ceil(Math.sqrt(totalItems * 1.2))
-                        const rows = Math.ceil(totalItems / cols)
-                        
-                        const gridCol = index % cols
-                        const gridRow = Math.floor(index / cols)
-                        
-                        // Base positions spread across the cart area (10% to 90% horizontally, 15% to 85% vertically)
-                        const baseGridLeft = cols > 1 ? 10 + (gridCol / (cols - 1)) * 80 : 50
-                        const baseGridTop = rows > 1 ? 15 + (gridRow / (rows - 1)) * 70 : 50
-                        
-                        // Add randomness to the base grid position (up to 25% variation)
-                        baseLeft = baseGridLeft + (random1 - 0.5) * 25
-                        baseTop = baseGridTop + (random2 - 0.5) * 25
-                      }
-                      
-                      // Additional random offset for more variation (larger range for 1-4 items)
-                      const additionalRandom1 = ((seed * 17 + index * 23) % 233280) / 233280
-                      const additionalRandom2 = (((seed * 17 + index * 23) * 19) % 233280) / 233280
-                      const offsetRange = totalItems <= 4 ? 15 : 20 // More offset for fewer items
-                      const leftOffset = (additionalRandom1 - 0.5) * offsetRange
-                      const topOffset = (additionalRandom2 - 0.5) * offsetRange
-                      
-                      // Final positions with all randomization, clamped to stay within bounds
-                      const leftPercent = Math.max(10, Math.min(90, baseLeft + leftOffset))
-                      const topPercent = Math.max(15, Math.min(85, baseTop + topOffset))
-                      
-                      // Slight random rotation (-12 to 12 degrees for more variation)
-                      const rotation = (random3 * 24) - 12
-                      
-                      // Fixed size for all items
-                      const baseSize = '300px'
-
-                      return (
-                        <div
-                          key={item.id}
-                          style={{
-                            position: 'absolute',
-                            left: `${leftPercent}%`,
-                            top: `${topPercent}%`,
-                            width: baseSize,
-                            height: baseSize,
-                            transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {item.image && (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              crossOrigin="anonymous"
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                                filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))',
-                              }}
-                            />
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                {activeIndex === 0 && (
+                  <Story1Content
+                    profileImage={profileImage}
+                    items={SHOP_ITEMS}
+                    quantities={quantities}
+                  />
+                )}
+                {activeIndex === 1 && (
+                  <Story2Content
+                    profileImage={profileImage}
+                    valuation={valuation}
+                    currentDate={currentDate}
+                    currentTime={currentTime}
+                  />
+                )}
+                {activeIndex === 2 && (
+                  <Story3Content
+                    items={SHOP_ITEMS}
+                    quantities={quantities}
+                  />
                 )}
               </div>
             </div>
-            
-            {/* Display rendered Story3 image once generated - in same animated container */}
-            {flattenedImage3 && allImagesReady && (
-              <img
-                src={flattenedImage3}
-                alt="FaceCard Story3 Export"
-                style={{
-                  width: `${FRAME_W}px`,
-                  height: `${FRAME_H}px`,
-                  objectFit: 'contain',
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-                }}
+          </div>
+
+          <div
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: 0,
+              width: `${FRAME_DIMENSIONS.WIDTH}px`,
+              height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              ref={story1Ref}
+              style={{
+                position: 'relative',
+                width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              }}
+            >
+              <Story1Content
+                profileImage={profileImage}
+                items={SHOP_ITEMS}
+                quantities={quantities}
               />
-            )}
+            </div>
+            <div
+              ref={story2Ref}
+              style={{
+                position: 'relative',
+                width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              }}
+            >
+              <Story2Content
+                profileImage={profileImage}
+                valuation={valuation}
+                currentDate={currentDate}
+                currentTime={currentTime}
+              />
+            </div>
+            <div
+              ref={story3Ref}
+              style={{
+                position: 'relative',
+                width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              }}
+            >
+              <Story3Content
+                items={SHOP_ITEMS}
+                quantities={quantities}
+              />
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Navigation buttons for cycling through story designs */}
-      <button
-        onClick={handlePrevious}
-        style={{
-          position: 'fixed',
-          left: 'clamp(20px, 5vw, 40px)',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          backgroundColor: '#6D6D6D',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 200,
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-          transition: 'background-color 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#5A5A5A'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#6D6D6D'
-        }}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+        </>
+      ) : (
+        <CarouselContainer
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          <path
-            d="M15 18L9 12L15 6"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          <StoryCard
+            index={0}
+            transform={getCardTransform(0)}
+            flattenedImage={story1Image}
+            showFlattenedImage={showFlattenedImages}
+            hideContent={showFlattenedImages}
+            contentRef={story1Ref}
+          >
+            <Story1Content
+              profileImage={profileImage}
+              items={SHOP_ITEMS}
+              quantities={quantities}
+            />
+          </StoryCard>
 
-      <button
-        onClick={handleNext}
-        style={{
-          position: 'fixed',
-          right: 'clamp(20px, 5vw, 40px)',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          backgroundColor: '#6D6D6D',
-          border: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 200,
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-          transition: 'background-color 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#5A5A5A'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#6D6D6D'
-        }}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M9 18L15 12L9 6"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          <StoryCard
+            index={1}
+            transform={getCardTransform(1)}
+            flattenedImage={story2Image}
+            showFlattenedImage={showFlattenedImages}
+            hideContent={showFlattenedImages}
+            contentRef={story2Ref}
+          >
+            <Story2Content
+              profileImage={profileImage}
+              valuation={valuation}
+              currentDate={currentDate}
+              currentTime={currentTime}
+            />
+          </StoryCard>
 
-      {/* Display flattened image - Hidden for now */}
-      {false && flattenedImage && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '20px',
-            paddingTop: '20px',
-            paddingBottom: '20px',
-          }}
-        >
-          <p style={{ fontSize: '14px', color: '#666' }}>Exported image (scaled down for preview):</p>
-          <img
-            src={flattenedImage || undefined}
-            alt="FaceCard Haul Export"
-            style={{
-              maxWidth: '300px',
-              display: 'block',
-              border: '1px solid #ddd',
-            }}
-          />
-        </div>
+          <StoryCard
+            index={2}
+            transform={getCardTransform(2)}
+            flattenedImage={story3Image}
+            showFlattenedImage={showFlattenedImages}
+            hideContent={showFlattenedImages}
+            contentRef={story3Ref}
+          >
+            <Story3Content
+              items={SHOP_ITEMS}
+              quantities={quantities}
+            />
+          </StoryCard>
+        </CarouselContainer>
       )}
+
+      <NavigationButton direction="prev" onClick={handlePrevious} />
+      <NavigationButton direction="next" onClick={handleNext} />
     </main>
   )
 }
-

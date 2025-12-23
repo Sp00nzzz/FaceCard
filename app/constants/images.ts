@@ -1,0 +1,6 @@
+export const IDcardBG = '/IDcardBG.png'
+export const LOGO = '/logo.png'
+export const TEXTURE = '/texture.webp'
+export const STORY1_BG = '/InstagramStory/Story1.png'
+export const STORY2_BG = '/InstagramStory/Story2.png'
+export const STORY3_BG = '/InstagramStory/Story3.png'

@@ -1,0 +1,98 @@
+import { FaceAttribute } from '../../types'
+import { STORY2_BG } from '../../constants/images'
+import { LicenseCard } from '../ui/LicenseCard'
+import { Receipt } from '../ui/Receipt'
+import { LICENSE_CARD, SPACING } from '../../constants'
+import { resolveAssetUrl } from '../../utils/imageUtils'
+
+interface Story2ContentProps {
+  profileImage: string | null
+  valuation: FaceAttribute[]
+  currentDate: string
+  currentTime: string
+}
+
+export function Story2Content({
+  profileImage,
+  valuation,
+  currentDate,
+  currentTime,
+}: Story2ContentProps) {
+  // Calculate scale for license card to match receipt width
+  const LICENSE_CARD_SCALE = (400 * 0.6) / LICENSE_CARD.WIDTH
+  const LICENSE_TOP = 220
+  const RECEIPT_TOP = 600
+
+  return (
+    <div
+      data-checkout-content-2
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        overflow: 'visible',
+      }}
+    >
+      {/* Story2 background image */}
+      <img
+        src={resolveAssetUrl(STORY2_BG)}
+        alt="Story 2 Background"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: 'center',
+        }}
+      />
+
+      {/* License Card above receipt on Story2 */}
+      {profileImage && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: `${LICENSE_TOP}px`,
+            transform: `translate3d(-50%, 0, 0) scale(${LICENSE_CARD_SCALE * 2 + 200 / LICENSE_CARD.WIDTH})`,
+            transformOrigin: 'bottom center',
+            zIndex: 1,
+            opacity: 1,
+            pointerEvents: 'none',
+            willChange: 'transform',
+            backfaceVisibility: 'hidden',
+          }}
+        >
+          <LicenseCard profileImage={profileImage} />
+        </div>
+      )}
+
+      {/* Receipt on top of Story2 */}
+      {valuation.length > 0 && (
+        <div
+          className="story2-receipt"
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: `${RECEIPT_TOP}px`,
+            transform: 'translateX(-50%)',
+            transformOrigin: 'top center',
+            zIndex: 1,
+            opacity: 1,
+            pointerEvents: 'none',
+          }}
+        >
+          <Receipt
+            valuation={valuation}
+            currentDate={currentDate}
+            currentTime={currentTime}
+            scale={1.7}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
