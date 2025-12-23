@@ -34,8 +34,9 @@ export function getCapturedImage(): string | null {
   if (!isClient()) return null
 
   try {
-    return window.sessionStorage.getItem(STORAGE_KEYS.CAPTURED_IMAGE)
-      || getLocalStorage()?.getItem(STORAGE_KEYS.CAPTURED_IMAGE)
+    const sessionValue = window.sessionStorage.getItem(STORAGE_KEYS.CAPTURED_IMAGE)
+    const localValue = getLocalStorage()?.getItem(STORAGE_KEYS.CAPTURED_IMAGE) ?? null
+    return sessionValue ?? localValue
   } catch (err) {
     console.warn('Unable to read captured image from sessionStorage:', err)
     return null
