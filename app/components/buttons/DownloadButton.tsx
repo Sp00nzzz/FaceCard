@@ -2,9 +2,10 @@ import { COLORS, TYPOGRAPHY, SPACING } from '../../constants'
 
 interface DownloadButtonProps {
   onClick: () => void
+  label?: string
 }
 
-export function DownloadButton({ onClick }: DownloadButtonProps) {
+export function DownloadButton({ onClick, label = 'DOWNLOAD' }: DownloadButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -29,7 +30,7 @@ export function DownloadButton({ onClick }: DownloadButtonProps) {
         touchAction: 'manipulation',
       }}
     >
-      DOWNLOAD
+      {label}
     </button>
   )
 }

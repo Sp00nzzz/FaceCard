@@ -18,7 +18,7 @@ import { ANIMATIONS, COLORS, FRAME_DIMENSIONS, IDcardBG, LOGO, STORY1_BG, STORY2
 import { FaceAttribute } from '../types'
 import { formatDate, formatTime } from '../utils/formatters'
 import { getCapturedImage, getCart, getValuation } from '../utils/sessionStorageManager'
-import { resolveAssetUrl } from '../utils/imageUtils'
+import { resolveAssetUrl, waitForImages, waitForBrowserPaint } from '../utils/imageUtils'
 
 const FALLBACK_VALUATION: FaceAttribute[] = [
   { name: 'Natural Beauty', price: 999999.99 },
@@ -55,6 +55,7 @@ export default function CheckoutPage() {
   const story1Ref = useRef<HTMLDivElement>(null)
   const story2Ref = useRef<HTMLDivElement>(null)
   const story3Ref = useRef<HTMLDivElement>(null)
+  const mobileCardRef = useRef<HTMLDivElement>(null)
 
   const {
     activeIndex,
@@ -241,17 +242,142 @@ export default function CheckoutPage() {
 
   const showFlattenedImages = allImagesReady && !isIOS
 
-  const downloadAsImage = () => {
+  const downloadAsImage = async () => {
     const images = [story1Image, story2Image, story3Image]
     const imageToDownload = images[activeIndex] || null
 
+    if (isIOS && mobileCardRef.current) {
+      try {
+        const node = mobileCardRef.current
+        await waitForImages(node)
+        await waitForBrowserPaint()
+
+        // @ts-ignore - dom-to-image-more doesn't have type definitions
+        const domtoimageModule = await import('dom-to-image-more')
+        const domtoimage = domtoimageModule.default || domtoimageModule
+        const dataUrl = await domtoimage.toPng(node, {
+          width: FRAME_DIMENSIONS.WIDTH,
+          height: FRAME_DIMENSIONS.HEIGHT,
+          style: {
+            width: `${FRAME_DIMENSIONS.WIDTH}px`,
+            height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+          },
+          quality: 0.92,
+          cacheBust: true,
+          bgcolor: '#ffffff',
+        })
+
+        const filename = `facecard-story${activeIndex + 1}-${FRAME_DIMENSIONS.WIDTH}x${FRAME_DIMENSIONS.HEIGHT}.png`
+        const dataUrlToBlob = (dataUrlValue: string): Blob | null => {
+          if (!dataUrlValue.startsWith('data:')) return null
+          try {
+            const [header, data] = dataUrlValue.split(',')
+            const mimeMatch = header.match(/data:(.*?);base64/)
+            const mime = mimeMatch ? mimeMatch[1] : 'image/png'
+            const byteString = atob(data)
+            const arrayBuffer = new ArrayBuffer(byteString.length)
+            const intArray = new Uint8Array(arrayBuffer)
+            for (let i = 0; i < byteString.length; i += 1) {
+              intArray[i] = byteString.charCodeAt(i)
+            }
+            return new Blob([arrayBuffer], { type: mime })
+          } catch (err) {
+            console.warn('Unable to parse data URL:', err)
+            return null
+          }
+        }
+
+        const blob = dataUrlToBlob(dataUrl)
+        if (blob && navigator.share) {
+          const file = new File([blob], filename, { type: blob.type || 'image/png' })
+          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'FaceCard Story',
+            })
+            return
+          }
+        }
+
+        const newTab = window.open()
+        if (newTab) {
+          newTab.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;" />`)
+        }
+        return
+      } catch (err) {
+        console.warn('Unable to export iOS image:', err)
+      }
+    }
+
     if (imageToDownload) {
-      const link = document.createElement('a')
-      link.download = `facecard-story${activeIndex + 1}-${FRAME_DIMENSIONS.WIDTH}x${FRAME_DIMENSIONS.HEIGHT}.png`
-      link.href = imageToDownload
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      const filename = `facecard-story${activeIndex + 1}-${FRAME_DIMENSIONS.WIDTH}x${FRAME_DIMENSIONS.HEIGHT}.png`
+      const dataUrlToBlob = (dataUrl: string): Blob | null => {
+        if (!dataUrl.startsWith('data:')) return null
+        try {
+          const [header, data] = dataUrl.split(',')
+          const mimeMatch = header.match(/data:(.*?);base64/)
+          const mime = mimeMatch ? mimeMatch[1] : 'image/png'
+          const byteString = atob(data)
+          const arrayBuffer = new ArrayBuffer(byteString.length)
+          const intArray = new Uint8Array(arrayBuffer)
+          for (let i = 0; i < byteString.length; i += 1) {
+            intArray[i] = byteString.charCodeAt(i)
+          }
+          return new Blob([arrayBuffer], { type: mime })
+        } catch (err) {
+          console.warn('Unable to parse data URL:', err)
+          return null
+        }
+      }
+
+      const tryShare = async () => {
+        if (!navigator.share) return false
+
+        try {
+          let blob: Blob | null = null
+          if (imageToDownload.startsWith('data:')) {
+            blob = dataUrlToBlob(imageToDownload)
+          } else {
+            const response = await fetch(imageToDownload)
+            blob = await response.blob()
+          }
+
+          if (!blob) return false
+
+          const file = new File([blob], filename, { type: blob.type || 'image/png' })
+
+          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'FaceCard Story',
+            })
+            return true
+          }
+        } catch (err) {
+          console.warn('Unable to share image:', err)
+        }
+
+        return false
+      }
+
+      tryShare().then((shared) => {
+        if (shared) return
+
+        if (imageToDownload.startsWith('data:')) {
+          const newTab = window.open()
+          if (newTab) {
+            newTab.document.write(`<img src="${imageToDownload}" style="width:100%;height:auto;" />`)
+          }
+          return
+        }
+
+        const link = document.createElement('a')
+        link.download = filename
+        link.href = imageToDownload
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      })
     } else {
       alert('Image is still generating. Please wait a moment.')
     }
@@ -279,7 +405,7 @@ export default function CheckoutPage() {
 
       <BackButton onClick={() => router.push('/shop')} label="← Back to Shop" />
 
-      <DownloadButton onClick={downloadAsImage} />
+      <DownloadButton onClick={downloadAsImage} label="DOWNLOAD" />
 
       <style dangerouslySetInnerHTML={{ __html: ANIMATIONS.FLOAT }} />
 
@@ -362,6 +488,7 @@ export default function CheckoutPage() {
               }}
             >
               <div
+                ref={mobileCardRef}
                 style={{
                   position: 'relative',
                   width: `${FRAME_DIMENSIONS.WIDTH}px`,
