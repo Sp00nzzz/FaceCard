@@ -2,6 +2,7 @@ import { ShopItem } from '../../types'
 import { STORY1_BG } from '../../constants/images'
 import { LicenseCard } from '../ui/LicenseCard'
 import { ItemsGrid } from './ItemsGrid'
+import { resolveAssetUrl } from '../../utils/imageUtils'
 
 interface Story1ContentProps {
   profileImage: string | null
@@ -23,9 +24,8 @@ export function Story1Content({ profileImage, items, quantities }: Story1Content
       }}
     >
       <img
-        src={STORY1_BG}
+        src={resolveAssetUrl(STORY1_BG)}
         alt="Face Card Shopping Spree"
-        crossOrigin="anonymous"
         style={{
           position: 'absolute',
           top: 0,

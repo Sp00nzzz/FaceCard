@@ -2,11 +2,16 @@ import { FaceAttribute } from '../types'
 import { STORAGE_KEYS } from '../constants/storageKeys'
 import { isClient } from './client'
 
+function getLocalStorage(): Storage | null {
+  return isClient() ? window.localStorage : null
+}
+
 export function getValuation(): FaceAttribute[] | null {
   if (!isClient()) return null
 
   try {
     const stored = window.sessionStorage.getItem(STORAGE_KEYS.VALUATION)
+      || getLocalStorage()?.getItem(STORAGE_KEYS.VALUATION)
     return stored ? JSON.parse(stored) : null
   } catch (err) {
     console.warn('Unable to read valuation from sessionStorage:', err)
@@ -19,6 +24,7 @@ export function setValuation(data: FaceAttribute[]): void {
 
   try {
     window.sessionStorage.setItem(STORAGE_KEYS.VALUATION, JSON.stringify(data))
+    getLocalStorage()?.setItem(STORAGE_KEYS.VALUATION, JSON.stringify(data))
   } catch (err) {
     console.warn('Unable to save valuation to sessionStorage:', err)
   }
@@ -29,6 +35,7 @@ export function getCapturedImage(): string | null {
 
   try {
     return window.sessionStorage.getItem(STORAGE_KEYS.CAPTURED_IMAGE)
+      || getLocalStorage()?.getItem(STORAGE_KEYS.CAPTURED_IMAGE)
   } catch (err) {
     console.warn('Unable to read captured image from sessionStorage:', err)
     return null
@@ -40,8 +47,10 @@ export function setCapturedImage(data: string): void {
 
   try {
     window.sessionStorage.setItem(STORAGE_KEYS.CAPTURED_IMAGE, data)
+    getLocalStorage()?.setItem(STORAGE_KEYS.CAPTURED_IMAGE, data)
     // Reset cart when a new photo is taken
     window.sessionStorage.removeItem(STORAGE_KEYS.CART)
+    getLocalStorage()?.removeItem(STORAGE_KEYS.CART)
   } catch (err) {
     console.warn('Unable to save captured image to sessionStorage:', err)
   }
@@ -52,6 +61,7 @@ export function getCart(): Record<string, number> | null {
 
   try {
     const stored = window.sessionStorage.getItem(STORAGE_KEYS.CART)
+      || getLocalStorage()?.getItem(STORAGE_KEYS.CART)
     return stored ? JSON.parse(stored) : null
   } catch (err) {
     console.warn('Unable to read cart from sessionStorage:', err)
@@ -64,6 +74,7 @@ export function setCart(data: Record<string, number>): void {
 
   try {
     window.sessionStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(data))
+    getLocalStorage()?.setItem(STORAGE_KEYS.CART, JSON.stringify(data))
   } catch (err) {
     console.warn('Unable to save cart to sessionStorage:', err)
   }

@@ -2,6 +2,7 @@ import { CardTilt } from '../../types'
 import { IDcardBG } from '../../constants/images'
 import { LICENSE_CARD } from '../../constants/spacing'
 import { COLORS } from '../../constants'
+import { resolveAssetUrl } from '../../utils/imageUtils'
 
 interface LicenseCardProps {
   profileImage: string | null
@@ -45,6 +46,9 @@ export function LicenseCard({
       : '0 16px 50px rgba(0,0,0,0.3)'
   }
 
+  const backgroundSrc = resolveAssetUrl(IDcardBG)
+  const profileSrc = profileImage ? resolveAssetUrl(profileImage) : null
+
   return (
     <div
       style={containerStyle}
@@ -54,8 +58,7 @@ export function LicenseCard({
     >
       <img
         alt="Face Card Baddie License"
-        src={IDcardBG}
-        crossOrigin="anonymous"
+        src={backgroundSrc}
         style={{
           display: 'block',
           width: '100%',
@@ -79,11 +82,10 @@ export function LicenseCard({
           zIndex: 1,
         }}
       >
-        {profileImage ? (
+        {profileSrc ? (
           <img
-            src={profileImage}
+            src={profileSrc}
             alt="Captured face"
-            crossOrigin="anonymous"
             style={{
               width: '100%',
               height: '100%',

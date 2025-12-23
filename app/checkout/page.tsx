@@ -14,10 +14,11 @@ import { LoadingScreen } from '../components/ui/LoadingScreen'
 import { useCarousel } from '../hooks/useCarousel'
 import { useImageGeneration } from '../hooks/useImageGeneration'
 import { SHOP_ITEMS } from '../constants/shopItems'
-import { ANIMATIONS, COLORS, FRAME_DIMENSIONS, TYPOGRAPHY } from '../constants'
+import { ANIMATIONS, COLORS, FRAME_DIMENSIONS, IDcardBG, LOGO, STORY1_BG, STORY2_BG, STORY3_BG, TEXTURE, TYPOGRAPHY } from '../constants'
 import { FaceAttribute } from '../types'
 import { formatDate, formatTime } from '../utils/formatters'
 import { getCapturedImage, getCart, getValuation } from '../utils/sessionStorageManager'
+import { resolveAssetUrl } from '../utils/imageUtils'
 
 const FALLBACK_VALUATION: FaceAttribute[] = [
   { name: 'Natural Beauty', price: 999999.99 },
@@ -35,7 +36,21 @@ export default function CheckoutPage() {
   const [currentTime, setCurrentTime] = useState<string>('')
   const [allImagesReady, setAllImagesReady] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
-  const [isMobile, setIsMobile] = useState(false)
+  const [isIOS, setIsIOS] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const ua = window.navigator.userAgent
+    const isAppleDevice = /iPad|iPhone|iPod/.test(ua)
+    const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(ua)
+    return isAppleDevice && isSafari
+  })
+  const [mobileScale, setMobileScale] = useState(() => {
+    if (typeof window === 'undefined') return 0.35
+    const widthScale = window.innerWidth / FRAME_DIMENSIONS.WIDTH
+    const heightScale = Math.max(0, window.innerHeight - 160) / FRAME_DIMENSIONS.HEIGHT
+    const nextScale = Math.min(widthScale, heightScale, 0.5)
+    return Number.isFinite(nextScale) && nextScale > 0 ? Math.max(0.22, nextScale) : 0.35
+  })
+  const [assetsReady, setAssetsReady] = useState(false)
 
   const story1Ref = useRef<HTMLDivElement>(null)
   const story2Ref = useRef<HTMLDivElement>(null)
@@ -60,15 +75,28 @@ export default function CheckoutPage() {
   }, [])
 
   useEffect(() => {
-    const updateIsMobile = () => {
+    const updateIsIOS = () => {
       if (typeof window !== 'undefined') {
-        setIsMobile(window.innerWidth <= 768)
+        const ua = window.navigator.userAgent
+        const isAppleDevice = /iPad|iPhone|iPod/.test(ua)
+        const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(ua)
+        const nextIsIOS = isAppleDevice && isSafari
+        setIsIOS(nextIsIOS)
+
+        if (nextIsIOS) {
+          const widthScale = window.innerWidth / FRAME_DIMENSIONS.WIDTH
+          const heightScale = Math.max(0, window.innerHeight - 160) / FRAME_DIMENSIONS.HEIGHT
+          const nextScale = Math.min(widthScale, heightScale, 0.5)
+          if (Number.isFinite(nextScale) && nextScale > 0) {
+            setMobileScale(Math.max(0.22, nextScale))
+          }
+        }
       }
     }
 
-    updateIsMobile()
-    window.addEventListener('resize', updateIsMobile)
-    return () => window.removeEventListener('resize', updateIsMobile)
+    updateIsIOS()
+    window.addEventListener('resize', updateIsIOS)
+    return () => window.removeEventListener('resize', updateIsIOS)
   }, [])
 
   useEffect(() => {
@@ -100,6 +128,53 @@ export default function CheckoutPage() {
     () => SHOP_ITEMS.filter(item => (quantities[item.id] || 0) > 0),
     [quantities]
   )
+
+  useEffect(() => {
+    const preloadImage = (src: string) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image()
+        const timeout = setTimeout(() => resolve(), 8000)
+        img.onload = () => {
+          clearTimeout(timeout)
+          if (typeof img.decode === 'function') {
+            img.decode().catch(() => undefined).finally(() => resolve())
+          } else {
+            resolve()
+          }
+        }
+        img.onerror = () => {
+          clearTimeout(timeout)
+          resolve()
+        }
+        img.src = src
+      })
+    }
+
+    const assetUrls = [
+      STORY1_BG,
+      STORY2_BG,
+      STORY3_BG,
+      IDcardBG,
+      LOGO,
+      TEXTURE,
+    ].map(resolveAssetUrl)
+
+    const itemUrls = purchasedItems
+      .map((item) => item.image)
+      .filter((src): src is string => !!src)
+      .map(resolveAssetUrl)
+
+    const profileUrls = profileImage ? [resolveAssetUrl(profileImage)] : []
+    const urls = [...assetUrls, ...itemUrls, ...profileUrls]
+
+    if (urls.length === 0) {
+      setAssetsReady(true)
+      return
+    }
+
+    setAssetsReady(false)
+    Promise.all(urls.map(preloadImage)).finally(() => setAssetsReady(true))
+  }, [profileImage, purchasedItems])
 
   const contentHash1 = useMemo(() => {
     const itemsKey = JSON.stringify(quantities)
@@ -164,7 +239,7 @@ export default function CheckoutPage() {
     setAllImagesReady(!!(story1Image && story2Image && story3Image))
   }, [story1Image, story2Image, story3Image])
 
-  const showFlattenedImages = allImagesReady && !isMobile
+  const showFlattenedImages = allImagesReady && !isIOS
 
   const downloadAsImage = () => {
     const images = [story1Image, story2Image, story3Image]
@@ -194,7 +269,11 @@ export default function CheckoutPage() {
         overflow: 'hidden',
       }}
     >
-      {!allImagesReady && !isMobile && (
+      {!allImagesReady && !isIOS && (
+        <LoadingScreen progress={loadingProgress} />
+      )}
+
+      {isIOS && !assetsReady && (
         <LoadingScreen progress={loadingProgress} />
       )}
 
@@ -257,56 +336,172 @@ export default function CheckoutPage() {
         SHOW THE WORLD YOUR HAUL
       </h1>
 
-      <CarouselContainer
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        <StoryCard
-          index={0}
-          transform={getCardTransform(0)}
-          flattenedImage={story1Image}
-          showFlattenedImage={showFlattenedImages}
-          hideContent={showFlattenedImages}
-          contentRef={story1Ref}
-        >
-          <Story1Content
-            profileImage={profileImage}
-            items={SHOP_ITEMS}
-            quantities={quantities}
-          />
-        </StoryCard>
+      {isIOS ? (
+        <>
+          <div
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              paddingTop: '140px',
+              zIndex: 20,
+            }}
+          >
+            <div
+              style={{
+                transform: `scale(${mobileScale})`,
+                transformOrigin: 'top center',
+              }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                  height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+                  background: '#fff',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+                  overflow: 'visible',
+                }}
+              >
+                {activeIndex === 0 && (
+                  <Story1Content
+                    profileImage={profileImage}
+                    items={SHOP_ITEMS}
+                    quantities={quantities}
+                  />
+                )}
+                {activeIndex === 1 && (
+                  <Story2Content
+                    profileImage={profileImage}
+                    valuation={valuation}
+                    currentDate={currentDate}
+                    currentTime={currentTime}
+                  />
+                )}
+                {activeIndex === 2 && (
+                  <Story3Content
+                    items={SHOP_ITEMS}
+                    quantities={quantities}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
 
-        <StoryCard
-          index={1}
-          transform={getCardTransform(1)}
-          flattenedImage={story2Image}
-          showFlattenedImage={showFlattenedImages}
-          hideContent={showFlattenedImages}
-          contentRef={story2Ref}
+          <div
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: 0,
+              width: `${FRAME_DIMENSIONS.WIDTH}px`,
+              height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              ref={story1Ref}
+              style={{
+                position: 'relative',
+                width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              }}
+            >
+              <Story1Content
+                profileImage={profileImage}
+                items={SHOP_ITEMS}
+                quantities={quantities}
+              />
+            </div>
+            <div
+              ref={story2Ref}
+              style={{
+                position: 'relative',
+                width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              }}
+            >
+              <Story2Content
+                profileImage={profileImage}
+                valuation={valuation}
+                currentDate={currentDate}
+                currentTime={currentTime}
+              />
+            </div>
+            <div
+              ref={story3Ref}
+              style={{
+                position: 'relative',
+                width: `${FRAME_DIMENSIONS.WIDTH}px`,
+                height: `${FRAME_DIMENSIONS.HEIGHT}px`,
+              }}
+            >
+              <Story3Content
+                items={SHOP_ITEMS}
+                quantities={quantities}
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <CarouselContainer
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          <Story2Content
-            profileImage={profileImage}
-            valuation={valuation}
-            currentDate={currentDate}
-            currentTime={currentTime}
-          />
-        </StoryCard>
+          <StoryCard
+            index={0}
+            transform={getCardTransform(0)}
+            flattenedImage={story1Image}
+            showFlattenedImage={showFlattenedImages}
+            hideContent={showFlattenedImages}
+            contentRef={story1Ref}
+          >
+            <Story1Content
+              profileImage={profileImage}
+              items={SHOP_ITEMS}
+              quantities={quantities}
+            />
+          </StoryCard>
 
-        <StoryCard
-          index={2}
-          transform={getCardTransform(2)}
-          flattenedImage={story3Image}
-          showFlattenedImage={showFlattenedImages}
-          hideContent={showFlattenedImages}
-          contentRef={story3Ref}
-        >
-          <Story3Content
-            items={SHOP_ITEMS}
-            quantities={quantities}
-          />
-        </StoryCard>
-      </CarouselContainer>
+          <StoryCard
+            index={1}
+            transform={getCardTransform(1)}
+            flattenedImage={story2Image}
+            showFlattenedImage={showFlattenedImages}
+            hideContent={showFlattenedImages}
+            contentRef={story2Ref}
+          >
+            <Story2Content
+              profileImage={profileImage}
+              valuation={valuation}
+              currentDate={currentDate}
+              currentTime={currentTime}
+            />
+          </StoryCard>
+
+          <StoryCard
+            index={2}
+            transform={getCardTransform(2)}
+            flattenedImage={story3Image}
+            showFlattenedImage={showFlattenedImages}
+            hideContent={showFlattenedImages}
+            contentRef={story3Ref}
+          >
+            <Story3Content
+              items={SHOP_ITEMS}
+              quantities={quantities}
+            />
+          </StoryCard>
+        </CarouselContainer>
+      )}
 
       <NavigationButton direction="prev" onClick={handlePrevious} />
       <NavigationButton direction="next" onClick={handleNext} />

@@ -84,14 +84,107 @@ export function useImageGeneration(
           contentWrapper.style.overflow = 'visible'
         }
 
-        // Normalize image URLs for mobile Safari + ensure CORS-safe loads in exports
+        // Normalize asset URLs for mobile Safari + ensure CORS-safe loads in exports
+        const cacheBust = `cb=${Date.now()}`
+        const withCacheBust = (url: string) => {
+          if (url.includes('data:')) return url
+          return `${url}${url.includes('?') ? '&' : '?'}${cacheBust}`
+        }
+
         const imageNodes = clonedNode.querySelectorAll('img')
         imageNodes.forEach((img) => {
+          const rawSrc = img.getAttribute('src') || img.src
+          if (!rawSrc) return
+
+          if (rawSrc.startsWith('data:')) {
+            img.crossOrigin = 'anonymous'
+            return
+          }
+
+          const absoluteSrc = rawSrc.startsWith('/')
+            ? new URL(rawSrc, window.location.href).href
+            : rawSrc
+
           img.crossOrigin = 'anonymous'
-          if (img.src.startsWith('/')) {
-            img.src = new URL(img.src, window.location.href).href
+          img.src = withCacheBust(absoluteSrc)
+        })
+
+        const styledNodes = clonedNode.querySelectorAll<HTMLElement>('*')
+        styledNodes.forEach((node) => {
+          const bgImage = node.style.backgroundImage
+          if (!bgImage || !bgImage.includes('url(')) return
+
+          const updated = bgImage.replace(/url\((['"]?)(.*?)\1\)/g, (match, quote, url) => {
+            if (typeof url === 'string' && url.startsWith('/')) {
+              const absoluteUrl = new URL(url, window.location.href).href
+              return `url(${quote || ''}${withCacheBust(absoluteUrl)}${quote || ''})`
+            }
+            if (typeof url === 'string' && url.startsWith('http')) {
+              return `url(${quote || ''}${withCacheBust(url)}${quote || ''})`
+            }
+            return match
+          })
+
+          if (updated !== bgImage) {
+            node.style.backgroundImage = updated
           }
         })
+
+        const blobToDataUrl = (blob: Blob): Promise<string> => {
+          return new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+        }
+
+        const inlineImageAssets = async () => {
+          const imgNodes = Array.from(clonedNode.querySelectorAll('img'))
+          await Promise.all(
+            imgNodes.map(async (img) => {
+              const src = img.getAttribute('src') || img.src
+              if (!src || src.startsWith('data:')) return
+              try {
+                const response = await fetch(src, { cache: 'no-store' })
+                const blob = await response.blob()
+                img.src = await blobToDataUrl(blob)
+              } catch (err) {
+                console.warn('Unable to inline image:', src, err)
+              }
+            })
+          )
+
+          const nodesWithBg = Array.from(clonedNode.querySelectorAll<HTMLElement>('*'))
+          await Promise.all(
+            nodesWithBg.map(async (node) => {
+              const bgImage = node.style.backgroundImage
+              if (!bgImage || !bgImage.includes('url(')) return
+
+              const urls = Array.from(bgImage.matchAll(/url\((['"]?)(.*?)\1\)/g))
+              if (urls.length === 0) return
+
+              let updatedBg = bgImage
+              for (const match of urls) {
+                const url = match[2]
+                if (!url || url.startsWith('data:')) continue
+                try {
+                  const response = await fetch(url, { cache: 'no-store' })
+                  const blob = await response.blob()
+                  const dataUrl = await blobToDataUrl(blob)
+                  updatedBg = updatedBg.replace(match[0], `url("${dataUrl}")`)
+                } catch (err) {
+                  console.warn('Unable to inline background image:', url, err)
+                }
+              }
+
+              if (updatedBg !== bgImage) {
+                node.style.backgroundImage = updatedBg
+              }
+            })
+          )
+        }
+
+        await inlineImageAssets()
 
         // Ensure absolutely-positioned children don't clip (for Story3)
         if (storyIndex === 3) {

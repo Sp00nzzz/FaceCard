@@ -78,3 +78,15 @@ export function getSafeScale(purchasedItemsCount: number = 0): number {
 
   return scale
 }
+
+export function resolveAssetUrl(path: string): string {
+  if (!path || path.startsWith('data:')) return path
+  if (typeof window === 'undefined') return path
+
+  try {
+    return new URL(path, window.location.href).href
+  } catch (err) {
+    console.warn('Unable to resolve asset URL:', path, err)
+    return path
+  }
+}

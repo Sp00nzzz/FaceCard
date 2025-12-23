@@ -1,5 +1,6 @@
 import { ShopItem } from '../../types'
 import { calculateItemPosition } from '../../utils/itemPositioning'
+import { resolveAssetUrl } from '../../utils/imageUtils'
 
 interface ItemsGridProps {
   items: ShopItem[]
@@ -58,9 +59,8 @@ export function ItemsGrid({
           >
             {item.image && (
               <img
-                src={item.image}
+                src={resolveAssetUrl(item.image)}
                 alt={item.name}
-                crossOrigin="anonymous"
                 style={{
                   width: '100%',
                   height: '100%',

@@ -1,6 +1,7 @@
 import { ShopItem } from '../../types'
 import { STORY3_BG } from '../../constants/images'
 import { ItemsGrid } from './ItemsGrid'
+import { resolveAssetUrl } from '../../utils/imageUtils'
 
 interface Story3ContentProps {
   items: ShopItem[]
@@ -21,9 +22,8 @@ export function Story3Content({ items, quantities }: Story3ContentProps) {
       }}
     >
       <img
-        src={STORY3_BG}
+        src={resolveAssetUrl(STORY3_BG)}
         alt="Face Card Shopping Spree"
-        crossOrigin="anonymous"
         style={{
           position: 'absolute',
           top: 0,

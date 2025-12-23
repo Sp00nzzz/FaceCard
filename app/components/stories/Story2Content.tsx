@@ -3,6 +3,7 @@ import { STORY2_BG } from '../../constants/images'
 import { LicenseCard } from '../ui/LicenseCard'
 import { Receipt } from '../ui/Receipt'
 import { LICENSE_CARD, SPACING } from '../../constants'
+import { resolveAssetUrl } from '../../utils/imageUtils'
 
 interface Story2ContentProps {
   profileImage: string | null
@@ -20,7 +21,7 @@ export function Story2Content({
   // Calculate scale for license card to match receipt width
   const LICENSE_CARD_SCALE = (400 * 0.6) / LICENSE_CARD.WIDTH
   const LICENSE_TOP = 220
-  const RECEIPT_TOP = 700
+  const RECEIPT_TOP = 600
 
   return (
     <div
@@ -36,9 +37,8 @@ export function Story2Content({
     >
       {/* Story2 background image */}
       <img
-        src={STORY2_BG}
+        src={resolveAssetUrl(STORY2_BG)}
         alt="Story 2 Background"
-        crossOrigin="anonymous"
         style={{
           position: 'absolute',
           top: 0,

@@ -4,6 +4,7 @@ import { TYPOGRAPHY, SPACING } from '../../constants'
 import { formatPrice } from '../../utils/formatters'
 import { calculateReceiptTotal } from '../../utils/calculations'
 import { Barcode } from './Barcode'
+import { resolveAssetUrl } from '../../utils/imageUtils'
 
 interface ReceiptProps {
   valuation: FaceAttribute[]
@@ -14,6 +15,8 @@ interface ReceiptProps {
 
 export function Receipt({ valuation, currentDate, currentTime, scale = 0.6 }: ReceiptProps) {
   const { subtotal, tax, total } = calculateReceiptTotal(valuation)
+  const logoSrc = resolveAssetUrl(LOGO)
+  const textureSrc = resolveAssetUrl(TEXTURE)
 
   return (
     <div
@@ -21,7 +24,7 @@ export function Receipt({ valuation, currentDate, currentTime, scale = 0.6 }: Re
         width: SPACING.MAX_RECEIPT_WIDTH,
         maxWidth: '150vw',
         backgroundColor: '#ffffff',
-        backgroundImage: `url(${TEXTURE})`,
+        backgroundImage: `url(${textureSrc})`,
         backgroundSize: 'cover',
         backgroundRepeat: 'repeat',
         backgroundPosition: 'center',
@@ -38,9 +41,8 @@ export function Receipt({ valuation, currentDate, currentTime, scale = 0.6 }: Re
     >
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <img
-          src={LOGO}
+          src={logoSrc}
           alt="Logo"
-          crossOrigin="anonymous"
           style={{
             maxWidth: 'clamp(150px, 40vw, 200px)',
             width: '100%',
