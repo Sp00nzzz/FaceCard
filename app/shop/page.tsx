@@ -169,7 +169,6 @@ export default function ShopPage() {
           height: '1px',
           backgroundColor: '#000000',
           marginTop: '32px',
-          marginBottom: '15px',
         }}
       />
 

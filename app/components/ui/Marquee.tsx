@@ -36,12 +36,15 @@ export function Marquee({
       {/* Marquee container */}
       <div
         style={{
-          width: 'calc(100% + 40px)',
+          width: '100vw',
           overflow: 'hidden',
           whiteSpace: 'nowrap',
-          marginBottom: '-25px',
           marginLeft: '-20px',
           marginRight: '-20px',
+          paddingTop: '8px',
+          paddingBottom: '8px',
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
         <div
@@ -51,6 +54,8 @@ export function Marquee({
             fontWeight,
             color: '#000000',
             display: 'inline-flex',
+            alignItems: 'center',
+            lineHeight: 1,
           }}
         >
           {Array.from({ length: 20 }).map((_, i) => (
