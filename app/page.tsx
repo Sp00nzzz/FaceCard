@@ -411,45 +411,13 @@ Example:
       gap: SPACING.SECTION_GAP,
       flexWrap: 'wrap',
     }}>
-      <button
-        onClick={() => router.push('/checkout')}
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          padding: '12px 20px',
-          fontSize: '14px',
-          fontWeight: TYPOGRAPHY.MEDIUM,
-          backgroundColor: COLORS.TEST_GREEN,
-          color: COLORS.WHITE,
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          boxShadow: '0 2px 8px rgba(52, 199, 89, 0.3)',
-          zIndex: 9999,
-          transition: 'all 0.2s ease',
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.backgroundColor = COLORS.TEST_GREEN_HOVER
-          e.currentTarget.style.transform = 'translateY(-2px)'
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(52, 199, 89, 0.4)'
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.backgroundColor = COLORS.TEST_GREEN
-          e.currentTarget.style.transform = 'translateY(0)'
-          e.currentTarget.style.boxShadow = '0 2px 8px rgba(52, 199, 89, 0.3)'
-        }}
-      >
-        Skip to Checkout (Test)
-      </button>
-
       <div
         style={{
           width: 'calc(100% + 40px)',
           height: '1px',
           backgroundColor: '#000000',
           marginTop: '0px',
-          marginBottom: '-25px',
+          marginBottom: '-20px',
           marginLeft: '-20px',
           marginRight: '-20px',
         }}
@@ -462,6 +430,7 @@ Example:
           width: 'calc(100% + 40px)',
           height: '1px',
           backgroundColor: '#000000',
+          marginTop: '-20px',
           marginBottom: 'clamp(45px, 8vw, 40px)',
           marginLeft: '-20px',
           marginRight: '-20px',

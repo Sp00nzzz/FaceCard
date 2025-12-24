@@ -41,8 +41,8 @@ export function Marquee({
           whiteSpace: 'nowrap',
           marginLeft: '-20px',
           marginRight: '-20px',
-          paddingTop: '8px',
-          paddingBottom: '8px',
+          paddingTop: '4px',
+          paddingBottom: '4px',
           display: 'flex',
           alignItems: 'center',
         }}
