@@ -512,7 +512,7 @@ export default function CheckoutPage() {
 
       <BackButton onClick={() => router.push('/shop')} label="← Back to Shop" />
 
-      <DownloadButton onClick={downloadAsImage} label="DOWNLOAD" />
+      <DownloadButton onClick={downloadAsImage} label="SHARE" />
 
       <style dangerouslySetInnerHTML={{ __html: ANIMATIONS.FLOAT }} />
 
