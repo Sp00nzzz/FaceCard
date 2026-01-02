@@ -274,7 +274,7 @@ Examples of what to describe:
 
 Write what you see on the face only. Use nice words.
 
-Give each thing a price between $2,500,000.00 and $5,500,000.00. Feel free to make up prices and add random cents.
+Give each thing a price between $2,500,000.00 and $20,500,000.00. Feel free to make up prices and add random cents.
 
 Give me ONLY a JSON list with "name" and "price". Make 4-8 things. ONLY JSON, nothing else.
 
